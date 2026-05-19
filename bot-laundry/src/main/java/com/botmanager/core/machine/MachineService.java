@@ -1,20 +1,22 @@
 package com.botmanager.core.machine;
 
 import com.botmanager.bots.laundry.LaundryBotConfig;
-import com.botmanager.core.mqtt.MqttManager;
 import com.botmanager.core.payment.PaymentEventPublisher;
 import com.botmanager.core.payment.PaymentRecord;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
@@ -24,9 +26,12 @@ public class MachineService {
 
     private final MachineStore machineStore;
 
-    private final MqttManager mqttManager;
+    private final RestTemplate restTemplate;
 
     private final ObjectMapper objectMapper;
+
+    @Value("${microservice.machine-state-service-url:http://localhost:8082}")
+    private String machineStateServiceUrl;
 
     private final Map<String, LaundryBotConfig> botConfigs = new ConcurrentHashMap<>();
 
@@ -37,75 +42,93 @@ public class MachineService {
 
         botConfigs.put(botConfig.getBotId(), botConfig);
         seedMachines(botConfig);
-        subscribeToMqtt(botConfig);
 
         log.info("Registered {} machines for bot {}", botConfig.getMachines().size(), botConfig.getBotId());
     }
 
     public List<MachineRecord> getMachines(String botId) {
+        try {
+            ResponseEntity<Map> response = restTemplate.getForEntity(
+                    machineStateServiceUrl + "/api/machines", Map.class);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                return mapMachineListFromResponse(botId, response.getBody());
+            }
+        } catch (Exception exception) {
+            log.warn("Failed to get machines from MachineStateService, falling back to local store: {}",
+                    exception.getMessage());
+        }
+
         return machineStore.getMachinesForBot(botId);
     }
 
     public Optional<MachineRecord> getMachine(String botId, String machineId) {
+        try {
+            ResponseEntity<Map> response = restTemplate.getForEntity(
+                    machineStateServiceUrl + "/api/machines/" + machineId, Map.class);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                return Optional.of(mapMachineFromResponse(botId, response.getBody()));
+            }
+        } catch (Exception exception) {
+            log.warn("Failed to get machine {} from MachineStateService, falling back to local store: {}",
+                    machineId, exception.getMessage());
+        }
+
         return machineStore.getMachine(botId, machineId);
     }
 
     public List<MachineRecord> getAvailableMachines(String botId) {
-        return machineStore.getAvailableMachines(botId);
+        return getMachines(botId).stream()
+                .filter(machine -> machine.getStatus() == MachineStatus.AVAILABLE)
+                .toList();
     }
 
     public void startMachine(String botId, String machineId, String program, String transactionId) {
-        LaundryBotConfig botConfig = botConfigs.get(botId);
-        if (botConfig == null || botConfig.getMqtt() == null) {
-            log.warn("Cannot start machine, bot {} not configured for MQTT", botId);
+        try {
+            Map<String, Object> body = new HashMap<>();
+            body.put("machineId", machineId);
+            body.put("cycleType", program != null ? program : "NORMAL");
+            body.put("durationMinutes", resolveDuration(botId, program));
+            body.put("pulseCount", resolvePulseCount(botId, program));
+            body.put("transactionReference", transactionId);
 
-            return;
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Content-Type", "application/json");
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+            restTemplate.exchange(
+                    machineStateServiceUrl + "/api/machines/start-cycle",
+                    HttpMethod.POST, entity, Map.class);
+
+            log.info("Sent start-cycle to MachineStateService: machine={}, program={}", machineId, program);
+
+        } catch (Exception exception) {
+            log.error("Failed to start machine {} via MachineStateService: {}",
+                    machineId, exception.getMessage());
         }
-
-        String topic = botConfig.getMqtt().getTopicPrefix() + "/machine-" + machineId + "/command";
-
-        Map<String, Object> command = new HashMap<>();
-        command.put("command", "START");
-        command.put("machineId", machineId);
-        command.put("program", program);
-        command.put("transactionId", transactionId);
-
-        mqttManager.publish(topic, command);
-
-        log.info("Sent START command to machine {} with program {}", machineId, program);
     }
 
     public void stopMachine(String botId, String machineId, String transactionId) {
-        LaundryBotConfig botConfig = botConfigs.get(botId);
-        if (botConfig == null || botConfig.getMqtt() == null) {
-            return;
+        try {
+            restTemplate.postForEntity(
+                    machineStateServiceUrl + "/api/machines/" + machineId + "/command/stop",
+                    null, Map.class);
+
+            log.info("Sent STOP command to machine {} via MachineStateService", machineId);
+        } catch (Exception exception) {
+            log.error("Failed to stop machine {}: {}", machineId, exception.getMessage());
         }
-
-        String topic = botConfig.getMqtt().getTopicPrefix() + "/machine-" + machineId + "/command";
-
-        Map<String, Object> command = new HashMap<>();
-        command.put("command", "STOP");
-        command.put("machineId", machineId);
-        command.put("transactionId", transactionId);
-
-        mqttManager.publish(topic, command);
-
-        log.info("Sent STOP command to machine {}", machineId);
     }
 
     public void requestStatus(String botId, String machineId) {
-        LaundryBotConfig botConfig = botConfigs.get(botId);
-        if (botConfig == null || botConfig.getMqtt() == null) {
-            return;
+        try {
+            restTemplate.postForEntity(
+                    machineStateServiceUrl + "/api/machines/" + machineId + "/command/status",
+                    null, Map.class);
+        } catch (Exception exception) {
+            log.warn("Failed to request status for machine {}: {}", machineId, exception.getMessage());
         }
-
-        String topic = botConfig.getMqtt().getTopicPrefix() + "/machine-" + machineId + "/command";
-
-        Map<String, Object> command = new HashMap<>();
-        command.put("command", "STATUS");
-        command.put("machineId", machineId);
-
-        mqttManager.publish(topic, command);
     }
 
     @EventListener
@@ -119,8 +142,10 @@ public class MachineService {
         String machineId = (String) record.getMetadata().get("machineId");
         String program = (String) record.getMetadata().get("program");
 
-        if (machineId != null && program != null) {
-            startMachine(record.getBotId(), machineId, program, record.getTransactionId());
+        if (machineId != null) {
+            startMachine(record.getBotId(), machineId,
+                    program != null ? program : "NORMAL",
+                    record.getTransactionId());
         }
     }
 
@@ -138,78 +163,88 @@ public class MachineService {
         }
     }
 
-    private void subscribeToMqtt(LaundryBotConfig botConfig) {
-        if (botConfig.getMqtt() == null || !mqttManager.isConnected()) {
-            return;
-        }
-
-        String prefix = botConfig.getMqtt().getTopicPrefix();
-        String statusPattern = prefix + "/machine-+/status";
-        String heartbeatPattern = prefix + "/machine-+/heartbeat";
-
-        mqttManager.subscribe(statusPattern, (topic, payload) ->
-                handleStatusMessage(botConfig.getBotId(), topic, payload));
-
-        mqttManager.subscribe(heartbeatPattern, (topic, payload) ->
-                handleHeartbeatMessage(botConfig.getBotId(), topic, payload));
-    }
-
     @SuppressWarnings("unchecked")
-    private void handleStatusMessage(String botId, String topic, String payload) {
-        try {
-            Map<String, Object> data = objectMapper.readValue(payload, Map.class);
-            String machineId = extractMachineIdFromTopic(topic);
+    private List<MachineRecord> mapMachineListFromResponse(String botId, Map<String, Object> responseBody) {
+        List<MachineRecord> records = new ArrayList<>();
 
-            machineStore.getMachine(botId, machineId).ifPresent(machine -> {
-                String status = (String) data.get("status");
-                String program = (String) data.get("program");
-                Integer remainingSeconds = (Integer) data.get("remainingSeconds");
-                String currentUser = (String) data.get("currentUser");
-
-                if (status != null) {
-                    machine.setStatus(MachineStatus.fromValue(status));
+        Object machinesObj = responseBody.get("machines");
+        if (machinesObj instanceof List<?> machinesList) {
+            for (Object item : machinesList) {
+                if (item instanceof Map) {
+                    records.add(mapMachineFromResponse(botId, (Map<String, Object>) item));
                 }
-
-                if (program != null) {
-                    machine.setProgram(program);
-                }
-
-                if (remainingSeconds != null) {
-                    machine.setRemainingSeconds(remainingSeconds);
-                }
-
-                if (currentUser != null) {
-                    machine.setCurrentUser(currentUser);
-                }
-
-                machineStore.upsertMachine(machine);
-
-                log.debug("Updated machine {} status: {}", machineId, status);
-            });
-        } catch (Exception exception) {
-            log.error("Failed to handle status message: {}", exception.getMessage());
-        }
-    }
-
-    private void handleHeartbeatMessage(String botId, String topic, String payload) {
-        String machineId = extractMachineIdFromTopic(topic);
-
-        machineStore.getMachine(botId, machineId).ifPresent(machine -> {
-            machine.setLastHeartbeatAt(Instant.now());
-            machineStore.upsertMachine(machine);
-        });
-    }
-
-    private String extractMachineIdFromTopic(String topic) {
-        String[] parts = topic.split("/");
-
-        for (String part : parts) {
-            if (part.startsWith("machine-")) {
-                return part.substring("machine-".length());
             }
         }
 
-        return null;
+        return records;
+    }
+
+    private MachineRecord mapMachineFromResponse(String botId, Map<String, Object> data) {
+        String machineId = (String) data.get("machineId");
+        String displayName = (String) data.get("displayName");
+        String statusStr = (String) data.get("status");
+        String typeStr = (String) data.get("type");
+        Boolean available = (Boolean) data.get("available");
+        Object remainingObj = data.get("remainingMinutes");
+        Integer remainingMinutes = remainingObj instanceof Number ? ((Number) remainingObj).intValue() : null;
+
+        MachineStatus status;
+        if (Boolean.TRUE.equals(available)) {
+            status = MachineStatus.AVAILABLE;
+        } else if ("RUNNING".equalsIgnoreCase(statusStr)) {
+            status = MachineStatus.IN_USE;
+        } else if ("FINISHED".equalsIgnoreCase(statusStr)) {
+            status = MachineStatus.COMPLETING;
+        } else if ("ERROR".equalsIgnoreCase(statusStr)) {
+            status = MachineStatus.ERROR;
+        } else if ("MAINTENANCE".equalsIgnoreCase(statusStr)) {
+            status = MachineStatus.MAINTENANCE;
+        } else {
+            status = MachineStatus.fromValue(statusStr);
+        }
+
+        MachineType type = null;
+        if ("WASHER".equalsIgnoreCase(typeStr)) {
+            type = MachineType.WASHER;
+        } else if ("DRYER".equalsIgnoreCase(typeStr)) {
+            type = MachineType.DRYER;
+        }
+
+        MachineRecord record = MachineRecord.builder()
+                .botId(botId)
+                .machineId(machineId)
+                .type(type)
+                .name(displayName != null ? displayName : machineId)
+                .status(status)
+                .remainingSeconds(remainingMinutes != null ? remainingMinutes * 60 : null)
+                .lastHeartbeatAt(Instant.now())
+                .build();
+
+        machineStore.upsertMachine(record);
+
+        return record;
+    }
+
+    private int resolveDuration(String botId, String program) {
+        LaundryBotConfig config = botConfigs.get(botId);
+        if (config != null && config.getShortCycle() != null && config.getLongCycle() != null) {
+            if ("cycle_long".equalsIgnoreCase(program) || "HEAVY".equalsIgnoreCase(program)) {
+                return config.getLongCycle().getDuration();
+            }
+            return config.getShortCycle().getDuration();
+        }
+        return 30;
+    }
+
+    private int resolvePulseCount(String botId, String program) {
+        LaundryBotConfig config = botConfigs.get(botId);
+        if (config != null && config.getShortCycle() != null && config.getLongCycle() != null) {
+            if ("cycle_long".equalsIgnoreCase(program) || "HEAVY".equalsIgnoreCase(program)) {
+                return config.getLongCycle().getPulseCount();
+            }
+            return config.getShortCycle().getPulseCount();
+        }
+        return 1;
     }
 
 }

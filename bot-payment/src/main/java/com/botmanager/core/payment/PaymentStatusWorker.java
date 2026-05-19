@@ -33,12 +33,11 @@ public class PaymentStatusWorker {
 
         if (pollingTasks.containsKey(taskKey)) {
             log.debug("Already polling for payment {}", record.getTransactionId());
-
             return;
         }
 
         pollingTasks.put(taskKey, true);
-        log.info("Starting status polling for payment {}", record.getTransactionId());
+        log.info("Starting status polling for payment {} via PaymentManagementService", record.getTransactionId());
 
         long startTime = System.currentTimeMillis();
         long timeout = paymentProperties.getTimeoutMs();

@@ -21,7 +21,8 @@ import java.util.concurrent.Executor;
         MqttProperties.class,
         PaymentProperties.class,
         RateLimitProperties.class,
-        BotProperties.class
+        BotProperties.class,
+        MicroserviceProperties.class
 })
 public class AppConfig {
 
