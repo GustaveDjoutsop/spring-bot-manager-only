@@ -1,171 +1,170 @@
-# Spring Bot Manager
+# spring-bot-manager-only
 
-Spring Boot **modular monolith** service for a multi-tenant Bot-as-a-Service platform (WhatsApp Cloud API).
+Spring Boot **modular monolith** — the WhatsApp bot chat layer for the **SmartLaundromatControlSystem** ecosystem.
 
-Local setup and required environment variables are documented in `document/LOCAL_RUN_GUIDE.md`.
+All payment and machine-state concerns are **delegated to dedicated microservices** via HTTP, keeping this service focused purely on conversation management, flow orchestration, and WhatsApp Cloud API integration.
+
+> Part of a 3-service architecture:
+> - **spring-bot-manager-only** ← you are here (WhatsApp bot / chat)
+> - [PaymentManagementService](https://github.com/GustaveDjoutsop/PaymentManagementService) — RFID cards & mobile money (port 8081)
+> - [MachineStateService](https://github.com/GustaveDjoutsop/MachineStateService) — ESP32, MQTT & machine lifecycle (port 8082)
+
+---
+
+## Architecture Overview
+
+```
+WhatsApp User
+      │
+      ▼
+spring-bot-manager-only  (port 8090)
+  ├── Flow Engine          → drives conversation states (JSON-configured)
+  ├── LaundryBot           → bilingual laundromat chatbot
+  │     │
+  │     ├── POST /api/payments/initiate
+  │     │         └──► PaymentManagementService :8081
+  │     │                   ├── CamPay / MTN MoMo / Orange Money
+  │     │                   └── RFID card debit
+  │     │
+  │     └── POST /api/machines/start-cycle
+  │               └──► MachineStateService :8082
+  │                         ├── MQTT pulse → ESP32
+  │                         └── Machine state tracking
+  │
+  └── Webhooks forwarded → PaymentManagementService :8081
+```
+
+---
+
+## What Changed (Refactoring from spring-bot-manager)
+
+| Component | Before | After |
+|-----------|--------|-------|
+| `DefaultPaymentGateway` | Called CamPay/MTN APIs directly | HTTP POST to `PaymentManagementService` |
+| `MachineService` | Published MQTT commands, read Redis | HTTP calls to `MachineStateService` |
+| `PaymentsController` | Handled webhooks locally | Forwards to `PaymentManagementService` via gateway |
+| `MachinesController` | Read from local Redis store | Proxies to `MachineStateService` |
+| `CamPayProvider` | Local implementation | **Deleted** — moved to `PaymentManagementService` |
+| `MtnMomoProvider` | Local stub | **Deleted** — moved to `PaymentManagementService` |
+| `PaymentProvider` abstract | Local base class | **Deleted** — no longer needed |
+
+`LaundryFlowPlugin`, `LaundryBot`, and the `FlowEngine` are **unchanged** — they still call the same `PaymentGateway` and `MachineService` interfaces; only the implementations behind them changed.
+
+---
 
 ## Features
 
 - **Multi-bot routing** via `phone_number_id`
 - **Configuration-driven conversation flows** (JSON)
-- **Redis-backed state** with in-memory fallback for graceful degradation
-- **Payment provider abstraction** (CamPay/MTN MoMo)
-- **MQTT integration** for IoT machine control (HiveMQ client)
-- **Internationalization** (EN/FR) with template rendering
+- **Redis-backed state** with in-memory fallback
+- **Microservice delegation** — payment & machine logic live in dedicated services
+- **Internationalization** (EN / FR) with Mustache template rendering
 - **Business hours validation** with timezone support
-- **Rate limiting** middleware (token bucket)
+- **Rate limiting** (token bucket per IP)
 - **Webhook signature verification** (HMAC-SHA256)
 
 ## Bots Included
 
 ### LaundryBot
-Self-service laundromat chatbot with:
-- Bilingual support (English/French)
+Self-service laundromat chatbot:
+- Bilingual (English / French)
 - Machine selection (manual ID or list)
 - Cycle selection with business hours validation
-- Mobile money payment integration
-- Feedback collection system
-- Staff alerts for low ratings
+- Mobile money payment via `PaymentManagementService`
+- Machine start via `MachineStateService`
+- Feedback collection & staff alerts for low ratings
 
 ### ThomasNetworkBot
-Network access service bot for pressing/laundry services.
+Network access service bot for pressing / laundry services.
+
+---
 
 ## Tech Stack
 
-- **Java 17** + **Spring Boot 3.2.2**
-- **Maven** build system
-- **Redis** for state management
-- **HiveMQ MQTT Client** for IoT
-- **Mustache** for template rendering
-- **Lombok** for boilerplate reduction
+| Layer | Technology |
+|---|---|
+| Runtime | Java 21, Spring Boot 3.3.7 |
+| Modules | Maven multi-module (bot-core, bot-payment, bot-laundry, bot-app) |
+| State | Redis (+ in-memory fallback) |
+| Persistence | PostgreSQL + Flyway migrations |
+| HTTP Client | Spring `RestTemplate` |
+| Templating | Mustache |
+| Build | Maven |
+| Utilities | Lombok |
 
-## Quick Start
+---
 
-### Prerequisites
+## Module Structure
 
-- Java 17+
-- Maven 3.8+
-- Redis (optional, falls back to in-memory)
+```
+spring-bot-manager-only/
+├── bot-core/        # Flow engine, WhatsApp client, Redis, persistence, MQTT manager
+├── bot-payment/     # PaymentGateway interface + DefaultPaymentGateway (HTTP delegate)
+│                    # PaymentsController (webhook forwarder)
+│                    # MicroserviceProperties (configurable URLs)
+├── bot-laundry/     # LaundryBot, LaundryFlowPlugin, MachineService (HTTP delegate)
+│                    # MachinesController
+├── bot-pharmacy/    # Pharmacy bot (separate domain)
+└── bot-app/         # Spring Boot entry point, security, JWT, AppConfig
+```
 
-### Installation
+---
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/GustaveDjoutsop/spring-bot-manager.git
-   cd spring-bot-manager
-   ```
+## API Endpoints
 
-2. Configure environment:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your values
-   ```
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/health` | Health check |
+| `GET` | `/api/whatsapp/webhook` | Meta webhook verification |
+| `POST` | `/api/whatsapp/webhook` | WhatsApp inbound messages |
+| `POST` | `/api/payments/webhooks/campay/{botId}` | CamPay callback (forwarded to PaymentManagementService) |
+| `POST` | `/api/payments/webhooks/mtn/{botId}` | MTN MoMo callback |
+| `POST` | `/api/payments/webhooks/orange/{botId}` | Orange Money callback |
+| `GET` | `/api/payments/{botId}/transactions/{transactionId}` | Retrieve transaction |
+| `GET` | `/api/machines/{botId}` | List machines (proxied from MachineStateService) |
+| `GET` | `/api/machines/{botId}/{machineId}` | Single machine status |
+| `GET` | `/api/machines/{botId}/available` | Available machines only |
 
-3. Build:
-   ```bash
-   mvn clean package -DskipTests
-   ```
-
-4. Run:
-   ```bash
-   java -jar target/spring-bot-manager-1.0.0-SNAPSHOT.jar
-   ```
-
-   Or with Maven:
-   ```bash
-   mvn spring-boot:run
-   ```
+---
 
 ## Configuration
 
-### Local Development
+### Microservice URLs
 
-- Copy [.env.example](.env.example) to `.env` for environment-based config.
-- Or use the Spring profile file [src/main/resources/application-local.properties](src/main/resources/application-local.properties) when `SPRING_PROFILES_ACTIVE=local`.
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PAYMENT_SERVICE_URL` | PaymentManagementService base URL | `http://localhost:8081` |
+| `MACHINE_STATE_SERVICE_URL` | MachineStateService base URL | `http://localhost:8082` |
 
-### Environment Variables (and where to get them)
+### WhatsApp Cloud API (Meta)
 
-This service supports **multi-bot routing** using WhatsApp webhook metadata `phone_number_id`. Each bot is configured in JSON (see next section) and has its own WhatsApp credentials.
+| Variable | Description |
+|----------|-------------|
+| `WHATSAPP_APP_SECRET` | App secret for webhook signature verification |
+| `WHATSAPP_API_VERSION` | Graph API version (e.g. `v20.0`) |
+| `WHATSAPP_ACCESS_TOKEN_<BOTID>` | Per-bot access token |
+| `WHATSAPP_APP_SECRET_<BOTID>` | Per-bot app secret |
 
-#### Server / Spring
+### CamPay (webhook secret only — payments handled by PaymentManagementService)
 
-| Variable | Meaning | Where to set/get |
-|----------|---------|------------------|
-| `PORT` | HTTP port for the API | Local choice (default `3000`) |
-| `MANAGEMENT_PORT` | Spring actuator port | Local choice (default `8081`) |
-| `SPRING_PROFILES_ACTIVE` | Spring profile (`local`, `cicd`, etc.) | Local choice |
+| Variable | Description |
+|----------|-------------|
+| `CAMPAY_WEBHOOK_SECRET` | Default webhook signing secret |
+| `CAMPAY_WEBHOOK_SECRET_<BOTID>` | Per-bot webhook signing secret |
 
-#### Redis (optional)
+### Other
 
-| Variable | Meaning | Where to set/get |
-|----------|---------|------------------|
-| `REDIS_URL` | Redis connection URL | Your Redis provider or local redis (`redis://localhost:6379`) |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `8090` | HTTP port |
+| `REDIS_URL` | `redis://localhost:6379` | Redis connection URL |
+| `DATABASE_URL` | `jdbc:postgresql://localhost:5432/smartbot` | PostgreSQL URL |
+| `JWT_SECRET` | — | JWT signing secret (min 32 chars) |
+| `BOT_CONFIG_DIRECTORY` | `configs/bots` | Directory for `*.bot.json` config files |
 
-#### WhatsApp Cloud API (Meta)
+### Bot Configuration (JSON)
 
-| Variable | Meaning | Where to get it in Meta |
-|----------|---------|--------------------------|
-| `WHATSAPP_API_BASE` | Graph API base URL | Usually keep default `https://graph.facebook.com` |
-| `WHATSAPP_API_VERSION` | Graph API version | e.g. `v20.0` |
-| `WHATSAPP_VERIFY_SIGNATURE` | If `true`, reject webhooks with invalid `X-Hub-Signature-256` | Recommended `true` in production |
-| `WHATSAPP_ACCESS_TOKEN_<BOTID>` | Token used to call WhatsApp Cloud API **for that bot** (send messages) | Meta App → WhatsApp → API Setup → (Temporary/Permanent) access token |
-| `WHATSAPP_APP_SECRET_<BOTID>` | App secret used to validate `X-Hub-Signature-256` **for that bot** | Meta App → Settings → Basic → **App secret** |
-| `WHATSAPP_APP_SECRET` | Global fallback app secret (single-app setups) | Same as above (only if you run one Meta app) |
-
-Notes:
-- The **WhatsApp Business Account ID (WABA)** is not required by this service.
-- `<BOTID>` must match the bot config `botId` (example: `LAUNDRY`, `THOMASNETWORK`).
-
-#### WhatsApp Webhook Verification Token
-
-This is not an env var. It is configured per bot in the bot JSON as `verifyToken` and is used only for the initial webhook handshake (`GET /api/whatsapp/webhook`).
-
-| Field | Meaning | Where to set/get |
-|------|---------|------------------|
-| `verifyToken` (in bot JSON) | A static string you choose; Meta sends it back as `hub.verify_token` during verification | You choose it; set the same value in Meta webhook config |
-
-#### CamPay
-
-| Variable | Meaning | Where to get it in CamPay |
-|----------|---------|----------------------------|
-| `CAMPAY_BASE_URL` | CamPay API base URL | Use `https://demo.campay.net/api` for sandbox, `https://www.campay.net/api` for live |
-| `CAMPAY_AUTH_SCHEME` | Auth scheme for `Authorization` header | Usually `Token` |
-| `CAMPAY_TOKEN_<BOTID>` | **Permanent access token** for that bot’s CamPay app | CamPay dashboard → Application → API Access Keys → **Permanent Access token** |
-| `CAMPAY_WEBHOOK_SECRET_<BOTID>` | Webhook signing key for that CamPay app | CamPay dashboard → Application → API Access Keys → **App webhook key** |
-| `CAMPAY_TOKEN` / `CAMPAY_WEBHOOK_SECRET` | Global fallbacks (single CamPay app setup) | Same as above |
-
-Webhook URL to configure per CamPay app:
-- `POST /api/payments/webhooks/campay/laundry`
-- `POST /api/payments/webhooks/campay/thomasnetwork`
-
-#### MQTT (optional)
-
-| Variable | Meaning | Where to set/get |
-|----------|---------|------------------|
-| `MQTT_URL` | Broker URL | Your MQTT broker |
-| `MQTT_USERNAME` | Broker username | Your MQTT broker |
-| `MQTT_PASSWORD` | Broker password | Your MQTT broker |
-| `MQTT_TOPIC_PREFIX` | Optional prefix | Your choice |
-
-#### Rate limiting / Queue
-
-| Variable | Meaning | Default |
-|----------|---------|---------|
-| `RATE_LIMIT_WHATSAPP_WINDOW_MS` | Window for WhatsApp requests | `60000` |
-| `RATE_LIMIT_WHATSAPP_MAX` | Max WhatsApp requests per window | `120` |
-| `RATE_LIMIT_PAYMENTS_WEBHOOK_WINDOW_MS` | Window for payment webhooks | `60000` |
-| `RATE_LIMIT_PAYMENTS_WEBHOOK_MAX` | Max payment webhooks per window | `120` |
-| `QUEUE_MAX_SIZE` | In-memory queue size | `500` |
-
-#### Bot configuration directory
-
-| Variable | Meaning | Default |
-|----------|---------|---------|
-| `BOT_CONFIG_DIRECTORY` | Where `*.bot.json` configs are loaded from | `configs/bots` |
-
-### Bot Configuration
-
-Bots are configured via JSON files in `configs/bots/`:
+Place bot config files in `configs/bots/`:
 
 ```json
 {
@@ -175,97 +174,90 @@ Bots are configured via JSON files in `configs/bots/`:
   "phoneNumberId": "YOUR_PHONE_NUMBER_ID",
   "verifyToken": "YOUR_VERIFY_TOKEN",
   "shortCycle": { "duration": 30, "price": 1000, "pulseCount": 1 },
-  "longCycle": { "duration": 60, "price": 2000, "pulseCount": 2 },
+  "longCycle":  { "duration": 60, "price": 2000, "pulseCount": 2 },
   "businessHours": {
     "openTime": "07:00",
     "closeTime": "22:00",
+    "closingBufferMinutes": 15,
     "timezone": "Africa/Douala"
+  },
+  "mqtt": {
+    "topicPrefix": "laundry/cameroon"
   }
 }
 ```
 
-Where to get the WhatsApp `phoneNumberId`:
-- Meta App → WhatsApp → API Setup → **Phone number ID** (also appears in webhook payload as `metadata.phone_number_id`).
+---
 
-## API Endpoints
+## Quick Start
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/health` | Health check |
-| `GET` | `/api/health/ready` | Readiness probe |
-| `GET` | `/api/health/live` | Liveness probe |
-| `GET` | `/api/whatsapp/webhook` | Meta verification |
-| `POST` | `/api/whatsapp/webhook` | WhatsApp inbound messages |
-| `POST` | `/api/payments/webhooks/campay/{botId}` | CamPay callbacks (per bot) |
-| `GET` | `/api/machines/{botId}` | List machines for a bot |
+### Prerequisites
 
-## Docker
+- Java 21+
+- Maven 3.8+
+- Redis (optional — falls back to in-memory)
+- PostgreSQL
+- [PaymentManagementService](https://github.com/GustaveDjoutsop/PaymentManagementService) running on port 8081
+- [MachineStateService](https://github.com/GustaveDjoutsop/MachineStateService) running on port 8082
 
-### Build
+### Run (local)
 
 ```bash
-docker build -t spring-bot-manager:latest .
+git clone https://github.com/GustaveDjoutsop/spring-bot-manager-only.git
+cd spring-bot-manager-only
+
+# Set required env vars
+export DATABASE_URL=jdbc:postgresql://localhost:5432/smartbot
+export DATABASE_USERNAME=smartbot
+export DATABASE_PASSWORD=smartbot
+export JWT_SECRET=change-me-in-production-must-be-at-least-32-chars
+export PAYMENT_SERVICE_URL=http://localhost:8081
+export MACHINE_STATE_SERVICE_URL=http://localhost:8082
+
+mvn clean package -DskipTests -pl bot-app -am
+java -jar bot-app/target/bot-app-0.1.0-SNAPSHOT.jar
 ```
 
-### Run
+Service starts on **http://localhost:8090**
+
+### Build only
 
 ```bash
-docker run -p 3000:3000 --env-file .env spring-bot-manager:latest
+mvn clean package -DskipTests
 ```
 
-## Kubernetes Deployment
+---
 
-Helm charts are available in `ci/helm-chart/`:
+## Running the Full Stack
+
+Start all three services together:
 
 ```bash
-helm install spring-bot-manager ./ci/helm-chart \
-  -f ./ci/helm-values/prod.yaml \
-  --set secrets.whatsappAccessToken=$WHATSAPP_TOKEN
+# Terminal 1 — PaymentManagementService
+cd PaymentManagementService && mvn spring-boot:run
+
+# Terminal 2 — MachineStateService
+cd MachineStateService && mvn spring-boot:run
+
+# Terminal 3 — spring-bot-manager-only
+cd spring-bot-manager-only && mvn spring-boot:run -pl bot-app -am
 ```
 
-## Testing
+Ports:
 
-### Unit Tests
+| Service | Port |
+|---------|------|
+| spring-bot-manager-only | 8090 |
+| PaymentManagementService | 8081 |
+| MachineStateService | 8082 |
 
-```bash
-mvn test
-```
-
-### Integration Tests
-
-```bash
-cd integration-tests
-docker-compose up --build
-```
-
-## Project Structure
-
-```
-src/main/java/com/botmanager/
-├── bots/
-│   ├── laundry/          # LaundryBot implementation
-│   └── thomasnetwork/    # ThomasNetworkBot implementation
-├── config/               # Configuration properties
-├── controller/           # REST controllers
-├── core/
-│   ├── bot/              # Bot base classes and registry
-│   ├── flow/             # Conversation flow engine
-│   ├── i18n/             # Internationalization
-│   ├── machine/          # Machine management
-│   ├── mqtt/             # MQTT client
-│   ├── payment/          # Payment gateway
-│   ├── queue/            # Message queue
-│   ├── redis/            # Redis manager
-│   └── whatsapp/         # WhatsApp client
-├── handler/              # Webhook handlers
-├── middleware/           # Request filters
-└── util/                 # Utilities
-```
+---
 
 ## Related Projects
 
-- [BotManagerService](https://github.com/GustaveDjoutsop/BotManagerService) - Node.js variant
-- [SmartLaundromatControlSystem](https://github.com/GustaveDjoutsop/SmartLaundromatControlSystem) - Original laundromat system
+- [PaymentManagementService](https://github.com/GustaveDjoutsop/PaymentManagementService)
+- [MachineStateService](https://github.com/GustaveDjoutsop/MachineStateService)
+- [SmartLaundromatControlSystem](https://github.com/GustaveDjoutsop/SmartLaundromatControlSystem) — original Node.js system
 
 ## License
 
