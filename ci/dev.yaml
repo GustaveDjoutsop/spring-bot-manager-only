@@ -45,6 +45,12 @@ spring:
 auth0:
   audience: https://smartlaundry.api
 
+# ── Auth0 M2M client (dev) ────────────────────────────────────────────────────
+auth0-client:
+  id: qrhBuc3lsJfRqsP8xKWAO334DOsseidM
+  secret: ${AUTH0_CLIENT_SECRET:5_L-EOe5BBn3g2V9egVHWnKJkabkxtqom4kIqxluEx8J0N6VEbFtG7XPdoCZln7G}
+  token-url: https://dev-iuo6si32jobgnmod.eu.auth0.com/oauth/token
+
 # ── JWT for local admin panel (keep for backward compat) ─────────────────────
 jwt:
   secret: dev-secret-key-at-least-32-chars-long-change-in-prod
@@ -93,7 +99,7 @@ springdoc:
   swagger-ui:
     enabled: true
     oauth:
-      client-id: ${SWAGGER_CLIENT_ID:qhBuc3}
+      client-id: qrhBuc3lsJfRqsP8xKWAO334DOsseidM
 
 # ── Rate limits: relaxed for dev ──────────────────────────────────────────────
 rate-limit:
