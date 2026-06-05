@@ -29,6 +29,28 @@ public class LaundryBotConfig extends BotConfig {
 
     private String staffAlertPhone;
 
+    private FeaturesConfig features = new FeaturesConfig();
+
+    /**
+     * Feature flags for the laundry bot. Both default to DISABLED.
+     *
+     * <ul>
+     *   <li>{@code washFlowEnabled} — gates the machine-select → cycle-select → payment
+     *       flow. When false, users may only check availability/info and cannot start a
+     *       wash cycle from the bot.</li>
+     *   <li>{@code reservationEnabled} — gates the reservation entry point (reserve a
+     *       1-hour slot, pay the reservation fee, receive a code on WhatsApp).</li>
+     * </ul>
+     */
+    @Getter
+    @Setter
+    public static class FeaturesConfig {
+
+        private boolean washFlowEnabled = false;
+
+        private boolean reservationEnabled = false;
+    }
+
     @Getter
     @Setter
     public static class MqttConfig {

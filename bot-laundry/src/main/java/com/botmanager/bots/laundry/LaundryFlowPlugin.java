@@ -195,6 +195,14 @@ public class LaundryFlowPlugin extends FlowPlugin {
     // ========== Start Wash Flow ==========
 
     private void handleStartWashFlow(FlowContext context) {
+        // Feature flag: when the wash flow is disabled, users can only check machine
+        // availability/info — they cannot select a machine, pick a cycle, or pay from the bot.
+        if (!laundryConfig.getFeatures().isWashFlowEnabled()) {
+            handleWashFlowDisabled(context);
+
+            return;
+        }
+
         int shortestDuration = laundryConfig.getShortCycle().getDuration();
         BusinessHoursService.CycleCheckResult checkResult = businessHoursService.canStartCycle(shortestDuration);
         BusinessHoursService.BusinessHoursInfo hoursInfo = businessHoursService.getBusinessHoursInfo();
@@ -226,6 +234,26 @@ public class LaundryFlowPlugin extends FlowPlugin {
         }
 
         goTo(context, "machine_method_selection");
+    }
+
+    /**
+     * Shown when {@code features.washFlowEnabled} is false. The bot stays read-only:
+     * the user is offered availability/info and the main menu, but no path into
+     * machine selection, cycle selection, or payment.
+     */
+    private void handleWashFlowDisabled(FlowContext context) {
+        String message = t("wash_flow_disabled", context);
+
+        List<FlowState.ButtonOption> buttons = new ArrayList<>();
+        buttons.add(createButton("action_availability", t("btn_availability", context)));
+        buttons.add(createButton("action_services", t("btn_services", context)));
+        buttons.add(createButton("action_cancel", t("btn_main_menu", context)));
+
+        context.set("responseMessage", message);
+        context.set("responseButtons", buttons);
+        context.set("step", LaundryStep.AWAITING_MENU_CHOICE);
+
+        goTo(context, "await_menu");
     }
 
     private void handleBusinessHoursClosed(FlowContext context, BusinessHoursService.CycleCheckResult checkResult, BusinessHoursService.BusinessHoursInfo hoursInfo) {

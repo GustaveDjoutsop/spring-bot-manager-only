@@ -104,6 +104,9 @@ public class TranslationService {
         addTranslation("no_machines",
                 "❌ Sorry, no machines are currently available.\n\nPlease try again later.",
                 "❌ Désolé, aucune machine n'est disponible actuellement.\n\nVeuillez réessayer plus tard.");
+        addTranslation("wash_flow_disabled",
+                "ℹ️ Starting a wash from the bot is not available right now.\n\nYou can still check machine availability and our services.",
+                "ℹ️ Le lancement d'un lavage depuis le bot n'est pas disponible pour le moment.\n\nVous pouvez toujours consulter la disponibilité des machines et nos services.");
         addTranslation("btn_enter_id", "\uD83D\uDCDD Enter ID", "\uD83D\uDCDD Entrer ID");
         addTranslation("btn_choose_list", "\uD83D\uDCCB Choose List", "\uD83D\uDCCB Voir Liste");
         addTranslation("enter_machine_id",

@@ -25,6 +25,10 @@
     "timezone": "Africa/Douala"
   },
   "staffAlertPhone": "237600000000",
+  "features": {
+    "washFlowEnabled": false,
+    "reservationEnabled": false
+  },
   "machines": [
     { "id": "washer_01", "type": "WASHER", "name": "Washer 1" },
     { "id": "washer_02", "type": "WASHER", "name": "Washer 2" },
