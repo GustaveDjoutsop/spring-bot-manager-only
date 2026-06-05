@@ -271,6 +271,7 @@ public class BotRegistry implements BotLookup {
             config.setBotType(entity.getIndustry());
             config.setPhoneNumberId(entity.getPhoneNumberId());
             config.setVerifyToken(entity.getVerifyToken());
+            resolveVerifyToken(config); // fallback to env var / YAML if not set in DB
 
             BaseBot bot = createBotInstance(config);
             if (bot != null) {

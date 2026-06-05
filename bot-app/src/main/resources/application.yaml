@@ -1,0 +1,140 @@
+# Server Configuration
+server:
+  port: ${PORT:8090}
+
+spring:
+  application:
+    name: spring-bot-manager
+
+  # Redis Configuration (optional - falls back to in-memory if not available)
+  # IMPORTANT: avoid empty-string URLs (Spring will fail fast with "Invalid Redis URL ''")
+  data:
+    redis:
+      url: ${REDIS_URL:${REDISCLOUD_URL:redis://localhost:6379}}
+      timeout: 5000ms
+
+  # PostgreSQL Configuration
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/smartbot}
+    username: ${DATABASE_USERNAME:smartbot}
+    password: ${DATABASE_PASSWORD:smartbot}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+  flyway:
+    enabled: true
+
+  # ── Security: Auth0 Resource Server ────────────────────────────────────────
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${AUTH0_ISSUER_URI:https://dev-iuo6si32jobgnmod.eu.auth0.com/}
+          audience: ${AUTH0_AUDIENCE:https://smartlaundry.api}
+
+management:
+  server:
+    port: ${MANAGEMENT_PORT:8081}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+# WhatsApp Configuration
+whatsapp:
+  api:
+    version: ${WHATSAPP_API_VERSION:v20.0}
+    base-url: ${WHATSAPP_API_BASE:https://graph.facebook.com}
+  verify-signature: ${WHATSAPP_VERIFY_SIGNATURE:true}
+  app-secret: ${WHATSAPP_APP_SECRET:3d9xxxx}
+  access-token:
+    laundry: EAAWSNc4995QBRmjTskUIiHdWrGg2NBVfQVGymBnT499NFRrqiWwiws5oZA6NnwY7sFRfZCHnC0d73rKUjxS8Ob5BcH9wtfAoMmIFW9OONZA6T9b4E9f24FLYGsbbRn3m9SeoqF1gOw5L2KBZAgsSKkdArbXFaXoAWcgTpUU0MavtKbhlHAdoi4EVJa7IM6RNxS6LeIQB4xGgSzsKOaArz9o8NcA0Gk4OXznCiARVyCqzT1vKtlGgKPirbPGAhZCZCmvTuVnL1T0GZCa5WTBFzMgZCZCYg
+    
+
+# Payment Configuration
+payment:
+  ttl-seconds: ${PAYMENT_TTL_SECONDS:86400}
+  poll-interval-ms: ${PAYMENT_POLL_INTERVAL_MS:10000}
+  timeout-ms: ${PAYMENT_TIMEOUT_MS:600000}
+
+# CamPay Configuration (kept for webhook secret resolution)
+campay:
+  token: ${CAMPAY_TOKEN:}
+  base-url: ${CAMPAY_BASE_URL:https://www.campay.net/api}
+  auth-scheme: ${CAMPAY_AUTH_SCHEME:Token}
+  collect-path: ${CAMPAY_COLLECT_PATH:/collect/}
+  status-path: ${CAMPAY_STATUS_PATH:/transaction/}
+  webhook-secret: ${CAMPAY_WEBHOOK_SECRET:}
+  webhook-signature-header: ${CAMPAY_WEBHOOK_SIGNATURE_HEADER:x-campay-signature}
+
+# Microservice URLs
+microservice:
+  payment-service-url: ${PAYMENT_SERVICE_URL:http://localhost:8081}
+  machine-state-service-url: ${MACHINE_STATE_SERVICE_URL:http://localhost:8082}
+
+# MQTT Configuration (now handled by MachineStateService, kept for fallback)
+mqtt:
+  url: ${MQTT_URL:}
+  username: ${MQTT_USERNAME:}
+  password: ${MQTT_PASSWORD:}
+  topic-prefix: ${MQTT_TOPIC_PREFIX:}
+
+# Rate Limiting
+rate-limit:
+  whatsapp:
+    window-ms: ${RATE_LIMIT_WHATSAPP_WINDOW_MS:60000}
+    max-requests: ${RATE_LIMIT_WHATSAPP_MAX:120}
+  payments:
+    window-ms: ${RATE_LIMIT_PAYMENTS_WEBHOOK_WINDOW_MS:60000}
+    max-requests: ${RATE_LIMIT_PAYMENTS_WEBHOOK_MAX:120}
+
+# Bot Configuration
+bot:
+  config-directory: ${BOT_CONFIG_DIRECTORY:configs/bots}
+
+# CORS Configuration
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+
+auth0:
+  audience: ${AUTH0_AUDIENCE:https://smartlaundry.api}
+
+# ── Springdoc / Swagger UI ──────────────────────────────────────────────────
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    oauth:
+      client-id: ${SWAGGER_CLIENT_ID:}
+      client-secret: ${SWAGGER_CLIENT_SECRET:}
+  show-actuator: false
+
+# Admin API
+admin:
+  username: ${ADMIN_USERNAME:admin}
+  password: ${ADMIN_PASSWORD:change-me-in-production}
+
+# JWT Authentication
+#jwt:
+#  secret: ${JWT_SECRET:change-me-in-production-must-be-at-least-32-chars}
+#  expiration-ms: ${JWT_EXPIRATION_MS:3600000}
+
+# Encryption
+encryption:
+  master-key: ${ENCRYPTION_MASTER_KEY:}
+
+# Logging
+logging:
+  level:
+    com.botmanager: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"

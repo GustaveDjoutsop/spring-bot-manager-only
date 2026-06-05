@@ -202,4 +202,4 @@ After startup:
 
 - `.env` files are **not automatically loaded** by Spring Boot in `mvn spring-boot:run` unless you explicitly wire that behavior.
 - Prefer setting env vars in shell, IDE run configuration, or OS environment.
-- Do not keep real secrets in `application-local.properties` in shared repositories.
+- Do not keep real secrets in `application-local.yaml` in shared repositories.

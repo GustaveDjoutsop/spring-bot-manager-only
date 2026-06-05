@@ -6,13 +6,13 @@ VALUES (
     'laundry',
     'Smart Laundry',
     'laundry',
-    '954151401109786',
+    '1089648187567384',
     $$
     {
       "botId": "laundry",
       "botName": "Smart Laundry",
       "botType": "laundry",
-      "phoneNumberId": "954151401109786",
+      "phoneNumberId": "1089648187567384",
       "mqtt": {
         "topicPrefix": "laundry"
       },

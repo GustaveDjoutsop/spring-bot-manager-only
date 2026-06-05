@@ -97,8 +97,8 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 // Public — webhooks (HMAC-verified inside controllers)
-                .requestMatchers(HttpMethod.GET,  "/api/whatsapp/webhook").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/whatsapp/webhook").permitAll()
+                .requestMatchers(HttpMethod.GET,  "/api/whatsapp/webhook", "/api/whatsapp/webhooks/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/whatsapp/webhook", "/api/whatsapp/webhooks/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/payments/webhooks/**").permitAll()
                 // Public — legacy admin login
                 .requestMatchers("/auth/**").permitAll()

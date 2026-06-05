@@ -35,7 +35,7 @@ logs/
 .env
 .env.local
 .env.*.local
-bot-app/src/main/resources/application-local.properties
+bot-app/src/main/resources/application-local.yaml
 
 # Test outputs
 integration-tests/results/

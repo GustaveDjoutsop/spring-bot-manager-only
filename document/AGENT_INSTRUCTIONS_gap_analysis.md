@@ -260,7 +260,7 @@ CREATE INDEX idx_payments_status ON payments(business_id, status);
 
 5. Add message logging in `MessageProcessor` — log every inbound/outbound message to the `messages` table.
 
-6. Add `application.properties`:
+6. Add `application.yaml`:
 ```properties
 spring.datasource.url=${DATABASE_URL:jdbc:postgresql://localhost:5432/smartbot}
 spring.jpa.hibernate.ddl-auto=validate
@@ -325,7 +325,7 @@ Alternatively, if you want to keep the explicit queue for backpressure control, 
 
 #### ISSUE 8: Signature Verification Defaults to DISABLED
 
-**Current state:** `application.properties` line 18: `whatsapp.verify-signature=${WHATSAPP_VERIFY_SIGNATURE:false}`
+**Current state:** `application.yaml` line 18: `whatsapp.verify-signature=${WHATSAPP_VERIFY_SIGNATURE:false}`
 
 **Problem:** This means in production, if the env var is not set, ANY HTTP client can send fake webhook payloads to your endpoint. This is a security vulnerability.
 
@@ -333,7 +333,7 @@ Alternatively, if you want to keep the explicit queue for backpressure control, 
 ```properties
 whatsapp.verify-signature=${WHATSAPP_VERIFY_SIGNATURE:true}
 ```
-Only disable in `application-local.properties` for development:
+Only disable in `application-local.yaml` for development:
 ```properties
 whatsapp.verify-signature=false
 ```
