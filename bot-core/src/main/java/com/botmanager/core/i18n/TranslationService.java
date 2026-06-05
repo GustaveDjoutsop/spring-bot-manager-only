@@ -185,6 +185,11 @@ public class TranslationService {
                 "Sorry, I didn't understand that.\n\nType 'start' or press the button below to see the main menu.",
                 "Désolé, je n'ai pas compris.\n\nTapez 'start' ou appuyez sur le bouton ci-dessous pour voir le menu principal.");
 
+        // System / service errors
+        addTranslation("machine_service_unavailable",
+                "⏳ *System is loading...*\n\nOur machine status system is temporarily unavailable. Please try again in a moment.",
+                "⏳ *Système en cours de chargement...*\n\nNotre système de statut des machines est temporairement indisponible. Veuillez réessayer dans un instant.");
+
         // Cycle completion
         addTranslation("cycle_completed",
                 "\uD83C\uDF89 *Your laundry is ready!*\n\n\uD83D\uDCCD Machine: {machine}\n⏱️ Cycle completed at: {endTime}\n\n\uD83D\uDC55 Please collect your clothes so the next customer can use the machine.\n\nThank you for using Smart Laundry! \uD83E\uDDFA",

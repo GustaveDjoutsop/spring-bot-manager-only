@@ -11,6 +11,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -33,6 +34,9 @@ public class MachineService {
     @Value("${microservice.machine-state-service-url:http://localhost:8082}")
     private String machineStateServiceUrl;
 
+    @Value("${microservice.machine-state-service-token:}")
+    private String machineStateServiceToken;
+
     private final Map<String, LaundryBotConfig> botConfigs = new ConcurrentHashMap<>();
 
     public void registerBot(LaundryBotConfig botConfig) {
@@ -48,34 +52,46 @@ public class MachineService {
 
     public List<MachineRecord> getMachines(String botId) {
         try {
-            ResponseEntity<Map> response = restTemplate.getForEntity(
-                    machineStateServiceUrl + "/api/machines", Map.class);
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    machineStateServiceUrl + "/api/machines",
+                    HttpMethod.GET,
+                    new HttpEntity<>(buildAuthHeaders()),
+                    Map.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return mapMachineListFromResponse(botId, response.getBody());
             }
-        } catch (Exception exception) {
-            log.warn("Failed to get machines from MachineStateService, falling back to local store: {}",
-                    exception.getMessage());
-        }
 
-        return machineStore.getMachinesForBot(botId);
+            throw new MachineServiceUnavailableException(
+                    "MachineStateService returned non-2xx status: " + response.getStatusCode());
+        } catch (MachineServiceUnavailableException e) {
+            throw e;
+        } catch (Exception exception) {
+            log.warn("Failed to get machines from MachineStateService: {}", exception.getMessage());
+            throw new MachineServiceUnavailableException("MachineStateService unreachable", exception);
+        }
     }
 
     public Optional<MachineRecord> getMachine(String botId, String machineId) {
         try {
-            ResponseEntity<Map> response = restTemplate.getForEntity(
-                    machineStateServiceUrl + "/api/machines/" + machineId, Map.class);
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    machineStateServiceUrl + "/api/machines/" + machineId,
+                    HttpMethod.GET,
+                    new HttpEntity<>(buildAuthHeaders()),
+                    Map.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return Optional.of(mapMachineFromResponse(botId, response.getBody()));
             }
-        } catch (Exception exception) {
-            log.warn("Failed to get machine {} from MachineStateService, falling back to local store: {}",
-                    machineId, exception.getMessage());
-        }
 
-        return machineStore.getMachine(botId, machineId);
+            throw new MachineServiceUnavailableException(
+                    "MachineStateService returned non-2xx status: " + response.getStatusCode());
+        } catch (MachineServiceUnavailableException e) {
+            throw e;
+        } catch (Exception exception) {
+            log.warn("Failed to get machine {} from MachineStateService: {}", machineId, exception.getMessage());
+            throw new MachineServiceUnavailableException("MachineStateService unreachable for machine " + machineId, exception);
+        }
     }
 
     public List<MachineRecord> getAvailableMachines(String botId) {
@@ -95,6 +111,7 @@ public class MachineService {
 
             HttpHeaders headers = new HttpHeaders();
             headers.set("Content-Type", "application/json");
+            applyBearerAuth(headers);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
 
             restTemplate.exchange(
@@ -111,9 +128,12 @@ public class MachineService {
 
     public void stopMachine(String botId, String machineId, String transactionId) {
         try {
-            restTemplate.postForEntity(
+            HttpEntity<Void> entity = new HttpEntity<>(buildAuthHeaders());
+            restTemplate.exchange(
                     machineStateServiceUrl + "/api/machines/" + machineId + "/command/stop",
-                    null, Map.class);
+                HttpMethod.POST,
+                entity,
+                Map.class);
 
             log.info("Sent STOP command to machine {} via MachineStateService", machineId);
         } catch (Exception exception) {
@@ -123,11 +143,27 @@ public class MachineService {
 
     public void requestStatus(String botId, String machineId) {
         try {
-            restTemplate.postForEntity(
+            HttpEntity<Void> entity = new HttpEntity<>(buildAuthHeaders());
+            restTemplate.exchange(
                     machineStateServiceUrl + "/api/machines/" + machineId + "/command/status",
-                    null, Map.class);
+                    HttpMethod.POST,
+                    entity,
+                    Map.class);
         } catch (Exception exception) {
             log.warn("Failed to request status for machine {}: {}", machineId, exception.getMessage());
+        }
+    }
+
+    private HttpHeaders buildAuthHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+        applyBearerAuth(headers);
+        return headers;
+    }
+
+    private void applyBearerAuth(HttpHeaders headers) {
+        if (machineStateServiceToken != null && !machineStateServiceToken.isBlank()) {
+            headers.setBearerAuth(machineStateServiceToken);
         }
     }
 

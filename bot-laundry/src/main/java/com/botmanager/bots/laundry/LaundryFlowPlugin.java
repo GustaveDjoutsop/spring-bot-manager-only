@@ -7,6 +7,7 @@ import com.botmanager.core.i18n.Language;
 import com.botmanager.core.i18n.TranslationService;
 import com.botmanager.core.machine.MachineRecord;
 import com.botmanager.core.machine.MachineService;
+import com.botmanager.core.machine.MachineServiceUnavailableException;
 import com.botmanager.core.machine.MachineStatus;
 import com.botmanager.core.payment.PaymentGateway;
 import com.botmanager.core.payment.PaymentRequest;
@@ -215,7 +216,13 @@ public class LaundryFlowPlugin extends FlowPlugin {
             return;
         }
 
-        List<MachineRecord> availableMachines = getAvailableMachines();
+        List<MachineRecord> availableMachines;
+        try {
+            availableMachines = getAvailableMachines();
+        } catch (MachineServiceUnavailableException e) {
+            showMachineServiceUnavailable(context);
+            return;
+        }
 
         if (availableMachines.isEmpty()) {
             String message = t("no_machines", context);
@@ -285,7 +292,13 @@ public class LaundryFlowPlugin extends FlowPlugin {
     // ========== Machine Selection ==========
 
     private void handleShowMachineMethodSelection(FlowContext context) {
-        List<MachineRecord> availableMachines = getAvailableMachines();
+        List<MachineRecord> availableMachines;
+        try {
+            availableMachines = getAvailableMachines();
+        } catch (MachineServiceUnavailableException e) {
+            showMachineServiceUnavailable(context);
+            return;
+        }
         int count = availableMachines.size();
 
         String message = t("machines_available", context, Map.of("count", count));
@@ -386,7 +399,13 @@ public class LaundryFlowPlugin extends FlowPlugin {
     }
 
     private void handleShowMachineList(FlowContext context) {
-        List<MachineRecord> availableMachines = getAvailableMachines();
+        List<MachineRecord> availableMachines;
+        try {
+            availableMachines = getAvailableMachines();
+        } catch (MachineServiceUnavailableException e) {
+            showMachineServiceUnavailable(context);
+            return;
+        }
         int totalAvailable = availableMachines.size();
 
         List<MachineRecord> machinesToShow = availableMachines.stream().limit(MAX_BUTTONS_DISPLAY).toList();
@@ -620,7 +639,13 @@ public class LaundryFlowPlugin extends FlowPlugin {
     }
 
     private void handleShowMachineAvailability(FlowContext context) {
-        List<MachineRecord> allMachines = machineService.getMachines(laundryConfig.getBotId());
+        List<MachineRecord> allMachines;
+        try {
+            allMachines = machineService.getMachines(laundryConfig.getBotId());
+        } catch (MachineServiceUnavailableException e) {
+            showMachineServiceUnavailable(context);
+            return;
+        }
         List<MachineRecord> availableMachines = allMachines.stream()
                 .filter(m -> m.getStatus() == MachineStatus.AVAILABLE)
                 .toList();
@@ -809,6 +834,16 @@ public class LaundryFlowPlugin extends FlowPlugin {
 
     private List<MachineRecord> getAvailableMachines() {
         return machineService.getAvailableMachines(laundryConfig.getBotId());
+    }
+
+    private void showMachineServiceUnavailable(FlowContext context) {
+        log.warn("MachineStateService unavailable, showing user-friendly message");
+        context.set("responseMessage", t("machine_service_unavailable", context));
+        context.set("responseButtons", List.of(
+                createButton("action_cancel", t("btn_main_menu", context))
+        ));
+        context.set("step", LaundryStep.AWAITING_MENU_CHOICE);
+        goTo(context, "await_menu");
     }
 
     private MachineRecord findMachineById(String machineId) {
