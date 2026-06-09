@@ -21,6 +21,12 @@ public final class LaundryStep {
 
     public static final String SELECT_CYCLE = "SELECT_CYCLE";
 
+    public static final String AWAITING_DATE_SELECTION = "AWAITING_DATE_SELECTION";
+
+    public static final String AWAITING_TIME_SELECTION = "AWAITING_TIME_SELECTION";
+
+    public static final String AWAITING_RESERVATION_CONFIRM = "AWAITING_RESERVATION_CONFIRM";
+
     public static final String AWAITING_FEEDBACK = "AWAITING_FEEDBACK";
 
     public static final String AWAITING_FEEDBACK_COMMENT = "AWAITING_FEEDBACK_COMMENT";

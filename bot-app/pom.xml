@@ -50,6 +50,12 @@
             <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
         </dependency>
 
+        <!-- OAuth2 Client — client credentials flow for outbound microservice calls -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-client</artifactId>
+        </dependency>
+
         <!-- API Documentation — SpringDoc OpenAPI / Swagger UI -->
         <dependency>
             <groupId>org.springdoc</groupId>

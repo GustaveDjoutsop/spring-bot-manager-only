@@ -57,6 +57,38 @@ public class WhatsAppClient implements MessageSender {
     }
 
     @Override
+    public void sendList(String to, MessageSender.ListMessage message) {
+        List<Map<String, Object>> sections = new ArrayList<>();
+        for (MessageSender.ListSection section : message.sections()) {
+            List<Map<String, Object>> rows = new ArrayList<>();
+            for (MessageSender.ListRow row : section.rows()) {
+                Map<String, Object> rowMap = new HashMap<>();
+                rowMap.put("id", row.id());
+                rowMap.put("title", row.title());
+                if (row.description() != null && !row.description().isBlank()) {
+                    rowMap.put("description", row.description());
+                }
+                rows.add(rowMap);
+            }
+            sections.add(Map.of("title", section.title(), "rows", rows));
+        }
+
+        Map<String, Object> interactive = new HashMap<>();
+        interactive.put("type", "list");
+        interactive.put("body", Map.of("text", message.body()));
+        interactive.put("action", Map.of("button", message.buttonText(), "sections", sections));
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("messaging_product", "whatsapp");
+        payload.put("recipient_type", "individual");
+        payload.put("to", to);
+        payload.put("type", "interactive");
+        payload.put("interactive", interactive);
+
+        sendMessage(payload);
+    }
+
+    @Override
     public void sendButtons(String to, String body, List<FlowState.ButtonOption> buttons) {
         List<Map<String, Object>> buttonList = new ArrayList<>();
 

@@ -268,6 +268,32 @@ public class TranslationService {
                 "Payment request failed. Please try again.",
                 "La demande de paiement a échoué. Veuillez réessayer.");
 
+        // Reservation
+        addTranslation("btn_reserve", "📅 Reserve", "📅 Réserver");
+        addTranslation("reservation_disabled",
+                "ℹ️ Machine reservation is not available right now.\n\nYou can still check availability or start a wash.",
+                "ℹ️ La réservation de machine n'est pas disponible pour le moment.\n\nVous pouvez toujours consulter la disponibilité ou lancer un lavage.");
+        addTranslation("reservation_select_date",
+                "📅 *Choose a date for {machine}:*\n\nReservation slot: 1 hour",
+                "📅 *Choisissez une date pour {machine}:*\n\nCréneau de réservation: 1 heure");
+        addTranslation("reservation_date_section", "Available Dates", "Dates Disponibles");
+        addTranslation("reservation_date_button", "Select Date", "Choisir Date");
+        addTranslation("reservation_select_time",
+                "🕐 *Choose a time on {date}:*\n\nMachine: {machine}",
+                "🕐 *Choisissez une heure le {date}:*\n\nMachine: {machine}");
+        addTranslation("reservation_time_section", "Available Times", "Heures Disponibles");
+        addTranslation("reservation_time_button", "Select Time", "Choisir Heure");
+        addTranslation("reservation_no_slots",
+                "❌ No available time slots for this date.\n\nPlease go back to the main menu and try again.",
+                "❌ Aucun créneau disponible pour cette date.\n\nRetournez au menu principal et réessayez.");
+        addTranslation("reservation_confirm_msg",
+                "📅 *Confirm Reservation*\n\n🖥️ Machine: {machine}\n📅 Date: {date}\n🕐 Time: {time}\n⏱️ Duration: {duration} min\n💰 Fee: {price} XAF\n\nConfirm to proceed with payment.",
+                "📅 *Confirmer la Réservation*\n\n🖥️ Machine: {machine}\n📅 Date: {date}\n🕐 Heure: {time}\n⏱️ Durée: {duration} min\n💰 Frais: {price} XAF\n\nConfirmez pour procéder au paiement.");
+        addTranslation("btn_confirm_reservation", "✅ Confirm", "✅ Confirmer");
+        addTranslation("reservation_initiated",
+                "✅ *Reservation request sent!*\n\nPlease approve the payment on your phone. Your machine will be reserved once payment is confirmed.\n\nType 'start' for the main menu.",
+                "✅ *Demande de réservation envoyée!*\n\nVeuillez approuver le paiement sur votre téléphone. Votre machine sera réservée une fois le paiement confirmé.\n\nTapez 'start' pour le menu principal.");
+
         // Staff alert
         addTranslation("staff_alert_low_rating",
                 "⚠️ *LOW RATING ALERT*\n\n\uD83D\uDCCD Machine: {machine}\n\uD83D\uDCF1 Customer: {phone}\n⭐ Rating: {rating}/5\n\uD83D\uDCAC Comment: {comment}\n\uD83D\uDD50 Time: {time}\n\nPlease follow up with the customer.",

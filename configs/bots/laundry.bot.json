@@ -20,14 +20,18 @@
   },
   "businessHours": {
     "openTime": "07:00",
-    "closeTime": "22:00",
+    "closeTime": "23:30",
     "closingBufferMinutes": 15,
     "timezone": "Africa/Douala"
   },
   "staffAlertPhone": "237600000000",
   "features": {
-    "washFlowEnabled": false,
-    "reservationEnabled": false
+    "washFlowEnabled": true,
+    "reservationEnabled": true
+  },
+  "reservation": {
+    "price": 500,
+    "durationMinutes": 60
   },
   "machines": [
     { "id": "washer_01", "type": "WASHER", "name": "Washer 1" },
@@ -186,6 +190,62 @@
           "id": "process_feedback_comment",
           "type": "action",
           "action": "feedback.processComment"
+        },
+        "reservation_date": {
+          "id": "reservation_date",
+          "type": "action",
+          "action": "reservation.showDate",
+          "next": "await_reservation_date"
+        },
+        "await_reservation_date": {
+          "id": "await_reservation_date",
+          "type": "input",
+          "saveAs": "userInput",
+          "next": "process_reservation_date"
+        },
+        "process_reservation_date": {
+          "id": "process_reservation_date",
+          "type": "action",
+          "action": "reservation.processDate"
+        },
+        "reservation_time": {
+          "id": "reservation_time",
+          "type": "action",
+          "action": "reservation.showTime",
+          "next": "await_reservation_time"
+        },
+        "await_reservation_time": {
+          "id": "await_reservation_time",
+          "type": "input",
+          "saveAs": "userInput",
+          "next": "process_reservation_time"
+        },
+        "process_reservation_time": {
+          "id": "process_reservation_time",
+          "type": "action",
+          "action": "reservation.processTime"
+        },
+        "reservation_confirm": {
+          "id": "reservation_confirm",
+          "type": "action",
+          "action": "reservation.confirm",
+          "next": "await_reservation_confirm"
+        },
+        "await_reservation_confirm": {
+          "id": "await_reservation_confirm",
+          "type": "input",
+          "saveAs": "userInput",
+          "next": "process_reservation_confirm"
+        },
+        "process_reservation_confirm": {
+          "id": "process_reservation_confirm",
+          "type": "action",
+          "action": "reservation.processConfirm"
+        },
+        "initiate_reservation": {
+          "id": "initiate_reservation",
+          "type": "action",
+          "action": "reservation.initiate"
         }
       }
     }

@@ -24,6 +24,8 @@ public class FlowEngine {
 
     private static final String CONTEXT_RESPONSE_BUTTONS = "responseButtons";
 
+    private static final String CONTEXT_RESPONSE_LIST = "responseList";
+
     private final TemplateRenderer templateRenderer;
 
     public void step(BotConfig botConfig,
@@ -245,6 +247,17 @@ public class FlowEngine {
             return;
         }
 
+        Map<String, Object> context = flowContext.getAll();
+
+        Object responseListObj = flowContext.get(CONTEXT_RESPONSE_LIST);
+        if (responseListObj instanceof MessageSender.ListMessage listMessage) {
+            messageSender.sendList(customerPhone, listMessage);
+            context.remove(CONTEXT_RESPONSE_LIST);
+            context.remove(CONTEXT_RESPONSE_MESSAGE);
+            context.remove(CONTEXT_RESPONSE_BUTTONS);
+            return;
+        }
+
         Object responseMessageObj = flowContext.get(CONTEXT_RESPONSE_MESSAGE);
         Object responseButtonsObj = flowContext.get(CONTEXT_RESPONSE_BUTTONS);
 
@@ -270,7 +283,6 @@ public class FlowEngine {
             }
         }
 
-        Map<String, Object> context = flowContext.getAll();
         context.remove(CONTEXT_RESPONSE_MESSAGE);
         context.remove(CONTEXT_RESPONSE_BUTTONS);
     }

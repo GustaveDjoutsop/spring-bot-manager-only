@@ -101,6 +101,11 @@ class FlowEngineTest {
             sentMessages.add(body);
         }
 
+        @Override
+        public void sendList(String to, ListMessage message) {
+            sentMessages.add(message.body());
+        }
+
         public List<String> getSentMessages() {
             return sentMessages;
         }

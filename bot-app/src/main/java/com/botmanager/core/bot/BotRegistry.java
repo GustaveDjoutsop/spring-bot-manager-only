@@ -1,6 +1,8 @@
 package com.botmanager.core.bot;
 
 import com.botmanager.bots.laundry.LaundryBotConfig;
+import com.botmanager.bots.laundry.LaundryBotConfiguration;
+import com.botmanager.bots.laundry.LaundryBotProperties;
 import com.botmanager.config.BotProperties;
 import com.botmanager.core.flow.FlowEngine;
 import com.botmanager.core.i18n.TranslationService;
@@ -57,6 +59,9 @@ public class BotRegistry implements BotLookup {
 
     @Autowired(required = false)
     private BusinessRepository businessRepository;
+
+    @Autowired(required = false)
+    private LaundryBotProperties laundryBotProperties;
 
     private final Map<String, BaseBot> botsByName = new ConcurrentHashMap<>();
 
@@ -272,6 +277,7 @@ public class BotRegistry implements BotLookup {
             config.setPhoneNumberId(entity.getPhoneNumberId());
             config.setVerifyToken(entity.getVerifyToken());
             resolveVerifyToken(config); // fallback to env var / YAML if not set in DB
+            applyYamlOverrides(config);
 
             BaseBot bot = createBotInstance(config);
             if (bot != null) {
@@ -341,6 +347,12 @@ public class BotRegistry implements BotLookup {
                     paymentGateway, translationService
             );
         };
+    }
+
+    private void applyYamlOverrides(BotConfig config) {
+        if (config instanceof LaundryBotConfig laundryConfig) {
+            LaundryBotConfiguration.applyYamlOverrides(laundryConfig, laundryBotProperties);
+        }
     }
 
     private void clearRegistry() {

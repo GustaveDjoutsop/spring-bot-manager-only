@@ -31,6 +31,8 @@ public class LaundryBotConfig extends BotConfig {
 
     private FeaturesConfig features = new FeaturesConfig();
 
+    private ReservationConfig reservation = new ReservationConfig();
+
     /**
      * Feature flags for the laundry bot. Both default to DISABLED.
      *
@@ -42,6 +44,15 @@ public class LaundryBotConfig extends BotConfig {
      *       1-hour slot, pay the reservation fee, receive a code on WhatsApp).</li>
      * </ul>
      */
+    @Getter
+    @Setter
+    public static class ReservationConfig {
+
+        private int price = 500;
+
+        private int durationMinutes = 60;
+    }
+
     @Getter
     @Setter
     public static class FeaturesConfig {

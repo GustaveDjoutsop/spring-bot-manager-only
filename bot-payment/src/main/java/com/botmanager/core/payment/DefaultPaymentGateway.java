@@ -3,12 +3,12 @@ package com.botmanager.core.payment;
 import com.botmanager.config.MicroserviceProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -19,7 +19,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class DefaultPaymentGateway implements PaymentGateway {
 
-    private final RestTemplate restTemplate;
+    @Autowired
+    @Qualifier("microserviceWebClient")
+    private WebClient webClient;
 
     private final MicroserviceProperties microserviceProperties;
 
@@ -41,14 +43,15 @@ public class DefaultPaymentGateway implements PaymentGateway {
             body.put("provider", resolveProvider(request.phoneNumber()));
             body.put("description", request.description());
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Content-Type", "application/json");
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+            Map<String, Object> responseBody = webClient.post()
+                    .uri(url)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(body)
+                    .retrieve()
+                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                    .block();
 
-            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
-
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                Map<String, Object> responseBody = response.getBody();
+            if (responseBody != null) {
                 boolean success = Boolean.TRUE.equals(responseBody.get("success"));
                 String externalRef = (String) responseBody.get("externalReference");
                 String providerRef = (String) responseBody.get("providerReference");
@@ -86,7 +89,7 @@ public class DefaultPaymentGateway implements PaymentGateway {
 
             return PaymentResult.builder()
                     .success(false)
-                    .errorMessage("Payment service returned unexpected response")
+                    .errorMessage("Payment service returned empty response")
                     .build();
 
         } catch (Exception exception) {
@@ -105,13 +108,15 @@ public class DefaultPaymentGateway implements PaymentGateway {
                 + "/api/payments/transaction/" + transactionId;
 
         try {
-            ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
+            Map<String, Object> response = webClient.get()
+                    .uri(url)
+                    .retrieve()
+                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                    .block();
 
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                String status = (String) response.getBody().get("status");
-                return PaymentStatus.fromValue(status);
+            if (response != null) {
+                return PaymentStatus.fromValue((String) response.get("status"));
             }
-
             return PaymentStatus.PENDING;
         } catch (Exception exception) {
             log.error("Failed to check payment status: {}", exception.getMessage());
@@ -125,12 +130,13 @@ public class DefaultPaymentGateway implements PaymentGateway {
                 + "/api/webhook/" + providerName;
 
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Content-Type", "application/json");
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
-
-            ResponseEntity<Map> response = restTemplate.exchange(
-                    webhookUrl, HttpMethod.POST, entity, Map.class);
+            webClient.post()
+                    .uri(webhookUrl)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(payload)
+                    .retrieve()
+                    .toBodilessEntity()
+                    .block();
 
             String externalRef = (String) payload.get("external_reference");
             if (externalRef == null) {

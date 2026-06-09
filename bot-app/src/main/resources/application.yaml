@@ -27,13 +27,27 @@ spring:
   flyway:
     enabled: true
 
-  # ── Security: Auth0 Resource Server ────────────────────────────────────────
+  # ── Security: Auth0 Resource Server + M2M client ───────────────────────────
   security:
     oauth2:
       resourceserver:
         jwt:
           issuer-uri: ${AUTH0_ISSUER_URI:https://dev-iuo6si32jobgnmod.eu.auth0.com/}
           audience: ${AUTH0_AUDIENCE:https://smartlaundry.api}
+      client:
+        provider:
+          auth0:
+            token-uri: https://dev-iuo6si32jobgnmod.eu.auth0.com/oauth/token
+
+            #token-uri: ${AUTH0_ISSUER_URI:https://dev-iuo6si32jobgnmod.eu.auth0.com}/oauth/token
+        registration:
+          smartlaundry-m2m:
+            provider: auth0
+            client-id: ${AUTH0_CLIENT_ID:6UGj1BFYTVTUdSC2AklgNsGoXqbCWlGZ}
+            client-secret: ${AUTH0_CLIENT_SECRET:tyC8-ROfwjnO_HThDoQMzuHvwcNiPE4IhSQiTi6V2dIc2mqcOqa1bKR2pEEeUVph}
+            authorization-grant-type: client_credentials
+            scope: sls-machine-read, sls-machine-write, sls-payment-write, sls-rfid-read, sls-rfid-manage, sls-rfid-debit, sls-payment-read, sls-payment-initiate, sls-topup-manage, sls-machine-start, sls-machine-command, sls-telemetry-write, sls-bot-admin
+            #scope: sls-machine-read,sls-machine-write,sls-payment-write,sls-payment-read,sls-payment-initiate,sls-machine-start,sls-machine-command,sls-telemetry-write,sls-bot-admin
 
 management:
   server:
@@ -54,7 +68,7 @@ whatsapp:
   verify-signature: ${WHATSAPP_VERIFY_SIGNATURE:true}
   app-secret: ${WHATSAPP_APP_SECRET:3d9xxxx}
   access-token:
-    laundry: EAAWSNc4995QBRiekowRaa8q5mZA5YTrC0GTkC8xD7tB8UYcZAvCOmcJZA3QAt6UpUvnLq0KqU4MnshKrol8nvF8XW69WFT2HUaXrfi842gvvZA3FqV2jeJAKhaFdIvRsZBmIVci1tPZC3XvP7JVgo6R4sLFAOZARHkisYTCzouKPwGxlbplQWewEdLvjn9f3Tz2HQUO62g2OZBbRIX2hcsFD045yhk3fkPeZBmzy0Udh7qwy7gQ1KkSdTvscwiwFLoiMmvKFFfY8SHSbdL0D3ZCebiXSEA
+    laundry: ${WHATSAPP_ACCESS_TOKEN_LAUNDRY:EAAWSNc4995QBRrihzX1BcgJ1BsK63IpqcvHkhlJ7ZCSU7pzFuQbA0rUSKN6ecInVl1ZCfQUmvQ6o8bW3zCUb9kNkbv24OQRETb0TIkZAfcMqbwpNi0gboZBgpyG8madAn5z1EYR0UzyhdZAtIZAAPEZAgMZApKqOAZBakjgoe73PiAZB4rH4ulgjbVuJRjGTEpzFKkuOAl868a7kmkatxK4ZBaWDgNnWOkvyEy31OWGHVFQPFZCiW8JJpFkTyWn6mUreM5TZCCoWENgjrZB6v9NpZCiyfKtagah}
     
 
 # Payment Configuration
@@ -76,9 +90,10 @@ campay:
 # Microservice URLs
 microservice:
   payment-service-url: ${PAYMENT_SERVICE_URL:http://localhost:8081}
-  payment-service-token: ${PAYMENT_SERVICE_TOKEN:eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Il9nOGc0TmVmUFFFckRMZU1pdWZoeCJ9.eyJpc3MiOiJodHRwczovL2Rldi1pdW82c2kzMmpvYmdubW9kLmV1LmF1dGgwLmNvbS8iLCJzdWIiOiI2VUdqMUJGWVRWVFVkU0MyQWtsZ05zR29YcWJDV2xHWkBjbGllbnRzIiwiYXVkIjoiaHR0cHM6Ly9zbWFydGxhdW5kcnkuYXBpIiwiaWF0IjoxNzgwNjg1ODkyLCJleHAiOjE3ODA2ODk0OTIsInNjb3BlIjoic2xzLW1hY2hpbmUtcmVhZCBzbHMtbWFjaGluZS13cml0ZSBzbHMtcGF5bWVudC13cml0ZSBzbHMtcmZpZC1yZWFkIHNscy1yZmlkLW1hbmFnZSBzbHMtcmZpZC1kZWJpdCBzbHMtcGF5bWVudC1yZWFkIHNscy1wYXltZW50LWluaXRpYXRlIHNscy10b3B1cC1tYW5hZ2Ugc2xzLW1hY2hpbmUtc3RhcnQgc2xzLW1hY2hpbmUtY29tbWFuZCBzbHMtdGVsZW1ldHJ5LXdyaXRlIHNscy1ib3QtYWRtaW4iLCJndHkiOiJjbGllbnQtY3JlZGVudGlhbHMiLCJhenAiOiI2VUdqMUJGWVRWVFVkU0MyQWtsZ05zR29YcWJDV2xHWiJ9.zxjeRTybPYbilQ738a1Xt5bzNCMdDld_lxUpzaGfhAyIvuPgz8ClWpEzP4op6kFIuz6jGHDHh7OSfVo-oQoI47YoRqtLylJ9VDgXPr8V4p1ZLJDN18Q6NgkrFD8ll0rbMonmJX0sAhoPcZYBwiHFD9D2czwl_TAUymCpqsIj9lt0BsaGG3GqUiI2HJleQDaZXWFruG00Y9mGcF7-9dPpifYVcyW_WLTtz0fFUyUGLRZiibwWNUxJ2npiXj6TMvKpEXbdmurHPqwjqKYkiCGWEgrIJOg8YrriAMaN-NsyjcrYXZE68HVjWd2D-Y6ThTUqW6GodyJQ03YT5PJip8rvJA}
   machine-state-service-url: ${MACHINE_STATE_SERVICE_URL:http://localhost:8082}
-  machine-state-service-token: ${MACHINE_STATE_SERVICE_TOKEN:eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Il9nOGc0TmVmUFFFckRMZU1pdWZoeCJ9.eyJpc3MiOiJodHRwczovL2Rldi1pdW82c2kzMmpvYmdubW9kLmV1LmF1dGgwLmNvbS8iLCJzdWIiOiI2VUdqMUJGWVRWVFVkU0MyQWtsZ05zR29YcWJDV2xHWkBjbGllbnRzIiwiYXVkIjoiaHR0cHM6Ly9zbWFydGxhdW5kcnkuYXBpIiwiaWF0IjoxNzgwNjg1ODkyLCJleHAiOjE3ODA2ODk0OTIsInNjb3BlIjoic2xzLW1hY2hpbmUtcmVhZCBzbHMtbWFjaGluZS13cml0ZSBzbHMtcGF5bWVudC13cml0ZSBzbHMtcmZpZC1yZWFkIHNscy1yZmlkLW1hbmFnZSBzbHMtcmZpZC1kZWJpdCBzbHMtcGF5bWVudC1yZWFkIHNscy1wYXltZW50LWluaXRpYXRlIHNscy10b3B1cC1tYW5hZ2Ugc2xzLW1hY2hpbmUtc3RhcnQgc2xzLW1hY2hpbmUtY29tbWFuZCBzbHMtdGVsZW1ldHJ5LXdyaXRlIHNscy1ib3QtYWRtaW4iLCJndHkiOiJjbGllbnQtY3JlZGVudGlhbHMiLCJhenAiOiI2VUdqMUJGWVRWVFVkU0MyQWtsZ05zR29YcWJDV2xHWiJ9.zxjeRTybPYbilQ738a1Xt5bzNCMdDld_lxUpzaGfhAyIvuPgz8ClWpEzP4op6kFIuz6jGHDHh7OSfVo-oQoI47YoRqtLylJ9VDgXPr8V4p1ZLJDN18Q6NgkrFD8ll0rbMonmJX0sAhoPcZYBwiHFD9D2czwl_TAUymCpqsIj9lt0BsaGG3GqUiI2HJleQDaZXWFruG00Y9mGcF7-9dPpifYVcyW_WLTtz0fFUyUGLRZiibwWNUxJ2npiXj6TMvKpEXbdmurHPqwjqKYkiCGWEgrIJOg8YrriAMaN-NsyjcrYXZE68HVjWd2D-Y6ThTUqW6GodyJQ03YT5PJip8rvJA}
+  oauth2-registration-id: ${MICROSERVICE_OAUTH2_REGISTRATION_ID:smartlaundry-m2m}
+  http:
+    user-agent: ${HTTP_USER_AGENT:SpringBot/1.0}
 
 # MQTT Configuration (now handled by MachineStateService, kept for fallback)
 mqtt:
@@ -99,6 +114,16 @@ rate-limit:
 # Bot Configuration
 bot:
   config-directory: ${BOT_CONFIG_DIRECTORY:configs/bots}
+
+# Per-bot feature flag overrides — take precedence over DB / JSON values.
+# Leave blank (empty string default) to use whatever is stored in the DB.
+# Set env var LAUNDRY_WASH_FLOW_ENABLED=true/false to override at runtime.
+smartbot:
+  bots:
+    laundry:
+      features:
+        wash-flow-enabled: ${LAUNDRY_WASH_FLOW_ENABLED:true}
+        reservation-enabled: ${LAUNDRY_RESERVATION_ENABLED:true}
 
 # CORS Configuration
 cors:

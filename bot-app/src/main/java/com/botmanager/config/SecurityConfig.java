@@ -3,6 +3,7 @@ package com.botmanager.config;
 import com.botmanager.auth.AudienceValidator;
 import com.botmanager.auth.JwtAuthenticationFilter;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -72,8 +73,9 @@ public class SecurityConfig {
 
     @Bean
     @Order(1)
-    public SecurityFilterChain adminFilterChain(HttpSecurity http,
-                                                JwtAuthenticationFilter jwtAuthFilter) throws Exception {
+    public SecurityFilterChain adminFilterChain(
+            HttpSecurity http,
+            @Autowired(required = false) JwtAuthenticationFilter jwtAuthFilter) throws Exception {
         http
             .securityMatcher("/admin/**")
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -81,8 +83,10 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth.anyRequest().hasRole("ADMIN"))
             .exceptionHandling(ex -> ex.authenticationEntryPoint(
-                (req, res, e) -> res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized")))
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                (req, res, e) -> res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized")));
+        if (jwtAuthFilter != null) {
+            http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+        }
         return http.build();
     }
 

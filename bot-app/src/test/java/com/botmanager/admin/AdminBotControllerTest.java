@@ -70,10 +70,10 @@ class AdminBotControllerTest {
     }
 
     @Test
-    void listBotsWithoutAuthShouldReturn403() {
+    void listBotsWithoutAuthShouldReturn401() {
         var response = restTemplate.getForEntity("/admin/bots", String.class);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test

@@ -6,15 +6,14 @@ import com.botmanager.core.payment.PaymentRecord;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.Instant;
 import java.util.*;
@@ -27,15 +26,14 @@ public class MachineService {
 
     private final MachineStore machineStore;
 
-    private final RestTemplate restTemplate;
-
     private final ObjectMapper objectMapper;
+
+    @Autowired
+    @Qualifier("microserviceWebClient")
+    private WebClient webClient;
 
     @Value("${microservice.machine-state-service-url:http://localhost:8082}")
     private String machineStateServiceUrl;
-
-    @Value("${microservice.machine-state-service-token:}")
-    private String machineStateServiceToken;
 
     private final Map<String, LaundryBotConfig> botConfigs = new ConcurrentHashMap<>();
 
@@ -43,27 +41,23 @@ public class MachineService {
         if (botConfig.getMachines() == null || botConfig.getMachines().isEmpty()) {
             return;
         }
-
         botConfigs.put(botConfig.getBotId(), botConfig);
         seedMachines(botConfig);
-
         log.info("Registered {} machines for bot {}", botConfig.getMachines().size(), botConfig.getBotId());
     }
 
     public List<MachineRecord> getMachines(String botId) {
         try {
-            ResponseEntity<Map> response = restTemplate.exchange(
-                    machineStateServiceUrl + "/api/machines",
-                    HttpMethod.GET,
-                    new HttpEntity<>(buildAuthHeaders()),
-                    Map.class);
+            Map<String, Object> response = webClient.get()
+                    .uri(machineStateServiceUrl + "/api/machines")
+                    .retrieve()
+                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                    .block();
 
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                return mapMachineListFromResponse(botId, response.getBody());
+            if (response != null) {
+                return mapMachineListFromResponse(botId, response);
             }
-
-            throw new MachineServiceUnavailableException(
-                    "MachineStateService returned non-2xx status: " + response.getStatusCode());
+            throw new MachineServiceUnavailableException("MachineStateService returned empty response");
         } catch (MachineServiceUnavailableException e) {
             throw e;
         } catch (Exception exception) {
@@ -74,18 +68,16 @@ public class MachineService {
 
     public Optional<MachineRecord> getMachine(String botId, String machineId) {
         try {
-            ResponseEntity<Map> response = restTemplate.exchange(
-                    machineStateServiceUrl + "/api/machines/" + machineId,
-                    HttpMethod.GET,
-                    new HttpEntity<>(buildAuthHeaders()),
-                    Map.class);
+            Map<String, Object> response = webClient.get()
+                    .uri(machineStateServiceUrl + "/api/machines/" + machineId)
+                    .retrieve()
+                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                    .block();
 
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                return Optional.of(mapMachineFromResponse(botId, response.getBody()));
+            if (response != null) {
+                return Optional.of(mapMachineFromResponse(botId, response));
             }
-
-            throw new MachineServiceUnavailableException(
-                    "MachineStateService returned non-2xx status: " + response.getStatusCode());
+            throw new MachineServiceUnavailableException("MachineStateService returned empty response");
         } catch (MachineServiceUnavailableException e) {
             throw e;
         } catch (Exception exception) {
@@ -109,32 +101,27 @@ public class MachineService {
             body.put("pulseCount", resolvePulseCount(botId, program));
             body.put("transactionReference", transactionId);
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Content-Type", "application/json");
-            applyBearerAuth(headers);
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-
-            restTemplate.exchange(
-                    machineStateServiceUrl + "/api/machines/start-cycle",
-                    HttpMethod.POST, entity, Map.class);
+            webClient.post()
+                    .uri(machineStateServiceUrl + "/api/machines/start-cycle")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(body)
+                    .retrieve()
+                    .toBodilessEntity()
+                    .block();
 
             log.info("Sent start-cycle to MachineStateService: machine={}, program={}", machineId, program);
-
         } catch (Exception exception) {
-            log.error("Failed to start machine {} via MachineStateService: {}",
-                    machineId, exception.getMessage());
+            log.error("Failed to start machine {} via MachineStateService: {}", machineId, exception.getMessage());
         }
     }
 
     public void stopMachine(String botId, String machineId, String transactionId) {
         try {
-            HttpEntity<Void> entity = new HttpEntity<>(buildAuthHeaders());
-            restTemplate.exchange(
-                    machineStateServiceUrl + "/api/machines/" + machineId + "/command/stop",
-                HttpMethod.POST,
-                entity,
-                Map.class);
-
+            webClient.post()
+                    .uri(machineStateServiceUrl + "/api/machines/" + machineId + "/command/stop")
+                    .retrieve()
+                    .toBodilessEntity()
+                    .block();
             log.info("Sent STOP command to machine {} via MachineStateService", machineId);
         } catch (Exception exception) {
             log.error("Failed to stop machine {}: {}", machineId, exception.getMessage());
@@ -143,41 +130,24 @@ public class MachineService {
 
     public void requestStatus(String botId, String machineId) {
         try {
-            HttpEntity<Void> entity = new HttpEntity<>(buildAuthHeaders());
-            restTemplate.exchange(
-                    machineStateServiceUrl + "/api/machines/" + machineId + "/command/status",
-                    HttpMethod.POST,
-                    entity,
-                    Map.class);
+            webClient.post()
+                    .uri(machineStateServiceUrl + "/api/machines/" + machineId + "/command/status")
+                    .retrieve()
+                    .toBodilessEntity()
+                    .block();
         } catch (Exception exception) {
             log.warn("Failed to request status for machine {}: {}", machineId, exception.getMessage());
-        }
-    }
-
-    private HttpHeaders buildAuthHeaders() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        applyBearerAuth(headers);
-        return headers;
-    }
-
-    private void applyBearerAuth(HttpHeaders headers) {
-        if (machineStateServiceToken != null && !machineStateServiceToken.isBlank()) {
-            headers.setBearerAuth(machineStateServiceToken);
         }
     }
 
     @EventListener
     public void onPaymentCompleted(PaymentEventPublisher.PaymentCompletedEvent event) {
         PaymentRecord record = event.getRecord();
-
         if (record.getMetadata() == null) {
             return;
         }
-
         String machineId = (String) record.getMetadata().get("machineId");
         String program = (String) record.getMetadata().get("program");
-
         if (machineId != null) {
             startMachine(record.getBotId(), machineId,
                     program != null ? program : "NORMAL",
@@ -194,7 +164,6 @@ public class MachineService {
                     .name(machineConfig.getName())
                     .status(MachineStatus.AVAILABLE)
                     .build();
-
             machineStore.upsertMachine(record);
         }
     }
@@ -202,7 +171,6 @@ public class MachineService {
     @SuppressWarnings("unchecked")
     private List<MachineRecord> mapMachineListFromResponse(String botId, Map<String, Object> responseBody) {
         List<MachineRecord> records = new ArrayList<>();
-
         Object machinesObj = responseBody.get("machines");
         if (machinesObj instanceof List<?> machinesList) {
             for (Object item : machinesList) {
@@ -211,7 +179,6 @@ public class MachineService {
                 }
             }
         }
-
         return records;
     }
 
@@ -257,7 +224,6 @@ public class MachineService {
                 .build();
 
         machineStore.upsertMachine(record);
-
         return record;
     }
 
@@ -282,5 +248,4 @@ public class MachineService {
         }
         return 1;
     }
-
 }
