@@ -32,6 +32,8 @@ public class DefaultPaymentGateway extends PaymentGateway {
     @Override
     public PaymentResult initiatePayment(PaymentRequest request) {
         String url = microserviceProperties.getPaymentServiceUrl() + "/api/payments/initiate";
+        log.info("Initiating payment for botId={}, phoneNumber={}, amount={}, provider={}",
+                request.botId(), request.phoneNumber(), request.amount(), resolveProvider(request.phoneNumber()));
 
         try {
             Map<String, Object> body = new HashMap<>();
@@ -42,6 +44,8 @@ public class DefaultPaymentGateway extends PaymentGateway {
             body.put("cycleDuration", extractCycleDuration(request));
             body.put("provider", resolveProvider(request.phoneNumber()));
             body.put("description", request.description());
+
+            log.debug("Payment initiation request body: {}", body);
 
             Map<String, Object> responseBody = webClient.post()
                     .uri(url)

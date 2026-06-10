@@ -27,6 +27,7 @@ public class LaundryBot extends BaseBot {
 
     private final LaundryFlowPlugin plugin;
     private final TranslationService translationService;
+    private final MachineService machineService;
 
     public LaundryBot(LaundryBotConfig config,
                       FlowEngine flowEngine,
@@ -39,6 +40,7 @@ public class LaundryBot extends BaseBot {
 
         super(config, flowEngine, redisManager, whatsAppClientFactory, objectMapper);
         this.translationService = translationService;
+        this.machineService = machineService;
         this.plugin = new LaundryFlowPlugin(paymentGateway, machineService, translationService, config);
 
         machineService.registerBot(config);
@@ -54,8 +56,20 @@ public class LaundryBot extends BaseBot {
     @Override
     public void onPaymentCompleted(PaymentRecord record) {
         Map<String, Object> metadata = record.getMetadata();
-        if (metadata == null) return;
+        if (metadata == null) {
+            log.warn("Payment completed but metadata is null, transactionId={}", record.getTransactionId());
+            return;
+        }
 
+        boolean isReservation = Boolean.TRUE.equals(metadata.get("isReservation"));
+        if (isReservation) {
+            handleReservationPaymentCompleted(record, metadata);
+        } else {
+            handleWashPaymentCompleted(record, metadata);
+        }
+    }
+
+    private void handleWashPaymentCompleted(PaymentRecord record, Map<String, Object> metadata) {
         String customerPhone = record.getCustomerPhone();
         Language lang = resolveLanguage(metadata);
         String machineName = (String) metadata.getOrDefault("machineName", "machine");
@@ -71,8 +85,55 @@ public class LaundryBot extends BaseBot {
                 "endTime", endTimeStr
         ));
 
-        log.info("Sending payment confirmed to {} for bot {}", customerPhone, config.getBotId());
+        log.info("Sending wash payment confirmed to {} for bot {}, machine={}",
+                customerPhone, config.getBotId(), machineName);
         sendMessage(customerPhone, message);
+    }
+
+    private void handleReservationPaymentCompleted(PaymentRecord record, Map<String, Object> metadata) {
+        String customerPhone = record.getCustomerPhone();
+        Language lang = resolveLanguage(metadata);
+        String machineName = (String) metadata.getOrDefault("machineName", "machine");
+        String machineId = (String) metadata.get("machineId");
+        String reservationDate = (String) metadata.get("reservationDate");
+        String reservationTime = (String) metadata.get("reservationTime");
+
+        log.info("Reservation payment confirmed for customer={}, machine={}, date={}, time={}",
+                customerPhone, machineId, reservationDate, reservationTime);
+
+        // Build the slot start datetime for MachineStateService
+        String slotStartIso = reservationDate + "T" + reservationTime + ":00";
+
+        // Create the reservation in MachineStateService
+        Map<String, Object> reservationResponse = machineService.createReservation(
+                machineId, customerPhone, slotStartIso);
+
+        if (reservationResponse != null) {
+            String reservationCode = (String) reservationResponse.get("reservationCode");
+            String transactionReference = (String) reservationResponse.get("transactionReference");
+
+            // Activate the reservation immediately since payment is already confirmed
+            machineService.activateReservation(transactionReference);
+
+            String message = translationService.translate("reservation_confirmed", lang, Map.of(
+                    "machine", machineName,
+                    "date", reservationDate != null ? reservationDate : "",
+                    "time", reservationTime != null ? reservationTime : "",
+                    "code", reservationCode != null ? reservationCode : "",
+                    "amount", record.getAmount()
+            ));
+
+            log.info("Reservation confirmed: code={}, machine={}, customer={}",
+                    reservationCode, machineName, customerPhone);
+            sendMessage(customerPhone, message);
+        } else {
+            log.error("Failed to create reservation after payment for customer={}, machine={}",
+                    customerPhone, machineId);
+            String message = translationService.translate("reservation_creation_failed", lang, Map.of(
+                    "machine", machineName
+            ));
+            sendMessage(customerPhone, message);
+        }
     }
 
     @Override

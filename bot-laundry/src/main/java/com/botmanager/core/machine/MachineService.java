@@ -140,6 +140,66 @@ public class MachineService {
         }
     }
 
+    /**
+     * Creates a reservation via MachineStateService and returns the response containing
+     * the reservation code and details.
+     *
+     * @return the reservation response map, or null if the call failed
+     */
+    public Map<String, Object> createReservation(String machineId, String customerPhone,
+                                                  String slotStart) {
+        try {
+            Map<String, Object> body = new HashMap<>();
+            body.put("machineId", machineId);
+            body.put("customerPhone", customerPhone);
+            body.put("slotStart", slotStart);
+
+            log.info("Creating reservation via MachineStateService: machineId={}, slotStart={}", machineId, slotStart);
+
+            Map<String, Object> response = webClient.post()
+                    .uri(machineStateServiceUrl + "/api/reservations")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(body)
+                    .retrieve()
+                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                    .block();
+
+            log.info("Reservation created successfully: {}", response);
+            return response;
+        } catch (Exception exception) {
+            log.error("Failed to create reservation for machine {}: {}", machineId, exception.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Activates a reservation via MachineStateService using the transaction reference.
+     *
+     * @return the activation response map, or null if the call failed
+     */
+    public Map<String, Object> activateReservation(String transactionReference) {
+        try {
+            Map<String, Object> body = new HashMap<>();
+            body.put("transactionReference", transactionReference);
+
+            log.info("Activating reservation via MachineStateService: transactionReference={}", transactionReference);
+
+            Map<String, Object> response = webClient.post()
+                    .uri(machineStateServiceUrl + "/api/reservations/activate")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(body)
+                    .retrieve()
+                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                    .block();
+
+            log.info("Reservation activated successfully: {}", response);
+            return response;
+        } catch (Exception exception) {
+            log.error("Failed to activate reservation with ref {}: {}", transactionReference, exception.getMessage());
+            return null;
+        }
+    }
+
     @EventListener
     public void onPaymentCompleted(PaymentEventPublisher.PaymentCompletedEvent event) {
         PaymentRecord record = event.getRecord();

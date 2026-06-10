@@ -16,7 +16,6 @@ import com.botmanager.core.payment.PaymentResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -246,6 +245,7 @@ public class LaundryFlowPlugin extends FlowPlugin {
         }
 
         if (availableMachines.isEmpty()) {
+            log.info("No machines available for wash flow, botId={}", laundryConfig.getBotId());
             String message = t("no_machines", context);
 
             List<FlowState.ButtonOption> buttons = new ArrayList<>();
@@ -261,7 +261,15 @@ public class LaundryFlowPlugin extends FlowPlugin {
             return;
         }
 
-        goTo(context, "machine_method_selection");
+        // Auto-pick the first available machine for the user
+        MachineRecord autoPickedMachine = availableMachines.getFirst();
+        context.set("selectedMachineId", autoPickedMachine.getMachineId());
+        context.set("selectedMachineName", autoPickedMachine.getName());
+        log.info("Auto-picked machine {} ({}) for wash flow, customerPhone={}",
+                autoPickedMachine.getMachineId(), autoPickedMachine.getName(),
+                context.getString("customerPhone"));
+
+        goTo(context, "cycle_selection");
     }
 
     /**
@@ -288,6 +296,7 @@ public class LaundryFlowPlugin extends FlowPlugin {
 
     private void handleStartReservationFlow(FlowContext context) {
         if (!laundryConfig.getFeatures().isReservationEnabled()) {
+            log.debug("Reservation feature is disabled, botId={}", laundryConfig.getBotId());
             String message = t("reservation_disabled", context);
             List<FlowState.ButtonOption> buttons = new ArrayList<>();
             buttons.add(createButton("action_availability", t("btn_availability", context)));
@@ -299,61 +308,33 @@ public class LaundryFlowPlugin extends FlowPlugin {
             return;
         }
 
-        BusinessHoursService.CycleCheckResult checkResult =
-                businessHoursService.canStartCycle(laundryConfig.getReservation().getDurationMinutes());
-        BusinessHoursService.BusinessHoursInfo hoursInfo = businessHoursService.getBusinessHoursInfo();
-
-        if (!checkResult.isAllowed()) {
-            handleBusinessHoursClosed(context, checkResult, hoursInfo);
-            return;
-        }
-
-        List<MachineRecord> availableMachines;
-        try {
-            availableMachines = getAvailableMachines();
-        } catch (MachineServiceUnavailableException e) {
-            showMachineServiceUnavailable(context);
-            return;
-        }
-
-        if (availableMachines.isEmpty()) {
-            String message = t("no_machines", context);
-            List<FlowState.ButtonOption> buttons = new ArrayList<>();
-            buttons.add(createButton("action_availability", t("btn_availability", context)));
-            buttons.add(createButton("action_cancel", t("btn_back_menu", context)));
-            context.set("responseMessage", message);
-            context.set("responseButtons", buttons);
-            context.set("step", LaundryStep.AWAITING_MENU_CHOICE);
-            goTo(context, "await_menu");
-            return;
-        }
-
+        log.info("Starting reservation flow for customerPhone={}", context.getString("customerPhone"));
         context.set("isReservation", true);
-        goTo(context, "machine_method_selection");
+        // Skip machine selection — go directly to date selection.
+        // The machine will be auto-assigned after the user picks date + time.
+        goTo(context, "reservation_date");
     }
 
     private void handleShowDateSelection(FlowContext context) {
-        String machineName = context.getString("selectedMachineName");
         ZoneId zone = ZoneId.of(laundryConfig.getBusinessHours().getTimezone());
         ZonedDateTime now = ZonedDateTime.now(zone);
         LocalDate today = now.toLocalDate();
-        LocalDate endOfWeek = today.with(DayOfWeek.SUNDAY);
+        LocalDate tomorrow = today.plusDays(1);
 
         DateTimeFormatter labelFormatter = DateTimeFormatter.ofPattern("EEE, MMM d");
-        List<MessageSender.ListRow> rows = new ArrayList<>();
-        for (LocalDate date = today; !date.isAfter(endOfWeek); date = date.plusDays(1)) {
-            String id = "res_date_" + date;
-            String title = date.equals(today)
-                    ? "Today, " + date.format(DateTimeFormatter.ofPattern("MMM d"))
-                    : date.format(labelFormatter);
-            rows.add(new MessageSender.ListRow(id, title, ""));
-        }
 
-        context.set("responseList", new MessageSender.ListMessage(
-                t("reservation_select_date", context, Map.of("machine", machineName != null ? machineName : "")),
-                t("reservation_date_button", context),
-                List.of(new MessageSender.ListSection(t("reservation_date_section", context), rows))
-        ));
+        // Offer only 2 days: today and tomorrow
+        List<FlowState.ButtonOption> buttons = new ArrayList<>();
+        String todayLabel = t("reservation_today", context) + ", " + today.format(DateTimeFormatter.ofPattern("MMM d"));
+        String tomorrowLabel = tomorrow.format(labelFormatter);
+        buttons.add(createButton("res_date_" + today, todayLabel));
+        buttons.add(createButton("res_date_" + tomorrow, tomorrowLabel));
+        buttons.add(createButton("action_cancel", t("btn_cancel", context)));
+
+        log.debug("Showing reservation date selection: today={}, tomorrow={}", today, tomorrow);
+
+        context.set("responseMessage", t("reservation_select_date_simple", context));
+        context.set("responseButtons", buttons);
         context.set("step", LaundryStep.AWAITING_DATE_SELECTION);
     }
 
@@ -367,8 +348,9 @@ public class LaundryFlowPlugin extends FlowPlugin {
         }
     }
 
+    private static final int MAX_TIME_SLOTS = 3;
+
     private void handleShowTimeSelection(FlowContext context) {
-        String machineName = context.getString("selectedMachineName");
         String dateStr = context.getString("reservationDate");
 
         ZoneId zone = ZoneId.of(laundryConfig.getBusinessHours().getTimezone());
@@ -383,19 +365,22 @@ public class LaundryFlowPlugin extends FlowPlugin {
         if (selectedDate.equals(now.toLocalDate())) {
             // Advance to next full hour with at least 15-minute buffer
             LocalTime minStart = now.toLocalTime().plusMinutes(15).withMinute(0).plusHours(1);
-            if (minStart.isAfter(slot)) slot = minStart;
+            if (minStart.isAfter(slot)) {
+                slot = minStart;
+            }
         }
 
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("HH:mm");
-        List<MessageSender.ListRow> rows = new ArrayList<>();
-        while (!slot.isAfter(lastStart)) {
+        List<FlowState.ButtonOption> buttons = new ArrayList<>();
+        while (!slot.isAfter(lastStart) && buttons.size() < MAX_TIME_SLOTS) {
             String id = "res_time_" + slot.format(fmt);
             String title = slot.format(fmt) + " - " + slot.plusMinutes(durationMinutes).format(fmt);
-            rows.add(new MessageSender.ListRow(id, title, ""));
+            buttons.add(createButton(id, title));
             slot = slot.plusHours(1);
         }
 
-        if (rows.isEmpty()) {
+        if (buttons.isEmpty()) {
+            log.info("No available time slots for reservation on date={}", dateStr);
             context.set("responseMessage", t("reservation_no_slots", context));
             context.set("responseButtons", List.of(createButton("action_cancel", t("btn_main_menu", context))));
             context.set("step", LaundryStep.AWAITING_MENU_CHOICE);
@@ -403,13 +388,10 @@ public class LaundryFlowPlugin extends FlowPlugin {
             return;
         }
 
-        context.set("responseList", new MessageSender.ListMessage(
-                t("reservation_select_time", context, Map.of(
-                        "date", dateStr != null ? dateStr : "",
-                        "machine", machineName != null ? machineName : "")),
-                t("reservation_time_button", context),
-                List.of(new MessageSender.ListSection(t("reservation_time_section", context), rows))
-        ));
+        log.debug("Showing {} time slots for reservation on date={}", buttons.size(), dateStr);
+
+        context.set("responseMessage", t("reservation_select_time_simple", context, Map.of("date", dateStr != null ? dateStr : "")));
+        context.set("responseButtons", buttons);
         context.set("step", LaundryStep.AWAITING_TIME_SELECTION);
     }
 
@@ -424,13 +406,39 @@ public class LaundryFlowPlugin extends FlowPlugin {
     }
 
     private void handleShowReservationConfirm(FlowContext context) {
-        String machineName = context.getString("selectedMachineName");
         String date = context.getString("reservationDate");
         String time = context.getString("reservationTime");
         LaundryBotConfig.ReservationConfig res = laundryConfig.getReservation();
 
+        // Auto-assign a machine now that the user has selected date + time
+        List<MachineRecord> availableMachines;
+        try {
+            availableMachines = getAvailableMachines();
+        } catch (MachineServiceUnavailableException e) {
+            showMachineServiceUnavailable(context);
+            return;
+        }
+
+        if (availableMachines.isEmpty()) {
+            log.info("No machines available for reservation on date={}, time={}", date, time);
+            context.set("responseMessage", t("no_machines", context));
+            context.set("responseButtons", List.of(createButton("action_cancel", t("btn_main_menu", context))));
+            context.set("step", LaundryStep.AWAITING_MENU_CHOICE);
+            context.set("isReservation", null);
+            goTo(context, "await_menu");
+            return;
+        }
+
+        MachineRecord assignedMachine = availableMachines.getFirst();
+        context.set("selectedMachineId", assignedMachine.getMachineId());
+        context.set("selectedMachineName", assignedMachine.getName());
+
+        log.info("Auto-assigned machine {} ({}) for reservation on date={}, time={}, customerPhone={}",
+                assignedMachine.getMachineId(), assignedMachine.getName(), date, time,
+                context.getString("customerPhone"));
+
         String message = t("reservation_confirm_msg", context, Map.of(
-                "machine", machineName != null ? machineName : "",
+                "machine", assignedMachine.getName(),
                 "date", date != null ? date : "",
                 "time", time != null ? time : "",
                 "duration", res.getDurationMinutes(),

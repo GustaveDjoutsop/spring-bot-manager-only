@@ -293,6 +293,19 @@ public class TranslationService {
         addTranslation("reservation_initiated",
                 "✅ *Reservation request sent!*\n\nPlease approve the payment on your phone. Your machine will be reserved once payment is confirmed.\n\nType 'start' for the main menu.",
                 "✅ *Demande de réservation envoyée!*\n\nVeuillez approuver le paiement sur votre téléphone. Votre machine sera réservée une fois le paiement confirmé.\n\nTapez 'start' pour le menu principal.");
+        addTranslation("reservation_today", "Today", "Aujourd'hui");
+        addTranslation("reservation_select_date_simple",
+                "📅 *Choose a day for your reservation:*\n\nYour machine will be reserved for 1 hour.",
+                "📅 *Choisissez un jour pour votre réservation:*\n\nVotre machine sera réservée pendant 1 heure.");
+        addTranslation("reservation_select_time_simple",
+                "🕐 *Choose a time on {date}:*\n\nSelect the start time for your 1-hour reservation.",
+                "🕐 *Choisissez une heure le {date}:*\n\nSélectionnez l'heure de début pour votre réservation d'1 heure.");
+        addTranslation("reservation_confirmed",
+                "✅ *Reservation Confirmed!*\n\n💰 Amount paid: {amount} XAF\n🖥️ Machine: {machine}\n📅 Date: {date}\n🕐 Time: {time}\n\n🔑 *Your reservation code: {code}*\n\nPresent this code when you arrive to start your machine.\n\nType 'start' for the main menu.",
+                "✅ *Réservation Confirmée!*\n\n💰 Montant payé: {amount} XAF\n🖥️ Machine: {machine}\n📅 Date: {date}\n🕐 Heure: {time}\n\n🔑 *Votre code de réservation: {code}*\n\nPrésentez ce code à votre arrivée pour démarrer votre machine.\n\nTapez 'start' pour le menu principal.");
+        addTranslation("reservation_creation_failed",
+                "⚠️ Your payment was confirmed but we could not finalize the reservation for {machine}. Please contact support.\n\nType 'start' for the main menu.",
+                "⚠️ Votre paiement a été confirmé mais nous n'avons pas pu finaliser la réservation pour {machine}. Veuillez contacter le support.\n\nTapez 'start' pour le menu principal.");
 
         // Staff alert
         addTranslation("staff_alert_low_rating",

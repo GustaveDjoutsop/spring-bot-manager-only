@@ -68,7 +68,7 @@ whatsapp:
   verify-signature: ${WHATSAPP_VERIFY_SIGNATURE:true}
   app-secret: ${WHATSAPP_APP_SECRET:3d9xxxx}
   access-token:
-    laundry: ${WHATSAPP_ACCESS_TOKEN_LAUNDRY:EAAWSNc4995QBRjW2esyq6HbjCvdkRJdyU7U4vA8Tr1ncHbVZA0NZApnez4uUNSL9ryi5v3OwCpPKvRBZBfh4l5tmZCGO4ViEgWN1oDkPyi9Fb4RJnZBlDuRp4P1Ubf8YmJA1ie564PZAoKEUHTSkJwtA7FOkBFvLFcH2sKbjSZCN1e8FdzdNEgaZBxZCQjgt9XBzSguohlX1TWVrBZBQWadjZA2svbKi04f5viZA00tSjkeM0JxG89oafLiV34AS76NZATbd0bubwxQ5mwWQOQxiLFnZBANrHV}
+    laundry: ${WHATSAPP_ACCESS_TOKEN_LAUNDRY:EAAWSNc4995QBRnKl9s5qMVMmtFZB9KuuXAz4rN8Y77ZA3aa1eHiATwEZBKTrhuZCvoBiCHs8Mr0hDz5NatiGaZCcUpNzEJZAhegFdjqbN75BiprRv1xRjU7v13wyOdQ3DH3VHTI2P3juUJeJ1IOBit22wmv5BkdLK1T1REC1Q9IdXzAkwZC6m5G3cAYViHDexw7lxZBdGPS58Y3xYWqU00tg6WXgZA8EETaspUXkWhDvv8Le9xLmmArqjBOgEAxp5C3mqVyDaNJZChVcbZBDqBlZB7YEdOW3}
     
 
 # Payment Configuration
@@ -159,9 +159,15 @@ admin:
 encryption:
   master-key: ${ENCRYPTION_MASTER_KEY:}
 
-# Logging
+# Logging — levels are configurable via env vars (e.g., LOG_LEVEL_BOT=DEBUG)
 logging:
   level:
-    com.botmanager: INFO
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.botmanager: ${LOG_LEVEL_BOT:INFO}
+    com.botmanager.core.flow: ${LOG_LEVEL_FLOW:INFO}
+    com.botmanager.core.payment: ${LOG_LEVEL_PAYMENT:INFO}
+    com.botmanager.core.machine: ${LOG_LEVEL_MACHINE:INFO}
+    com.botmanager.bots.laundry: ${LOG_LEVEL_LAUNDRY:INFO}
+    com.botmanager.core.whatsapp: ${LOG_LEVEL_WHATSAPP:INFO}
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} %-5level [%logger{36}] - %msg%n"
