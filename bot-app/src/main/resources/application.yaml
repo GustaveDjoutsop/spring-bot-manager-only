@@ -15,7 +15,7 @@ spring:
 
   # PostgreSQL Configuration
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/smartbot}
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:15432/smartbot}
     username: ${DATABASE_USERNAME:smartbot}
     password: ${DATABASE_PASSWORD:smartbot}
 
@@ -68,7 +68,7 @@ whatsapp:
   verify-signature: ${WHATSAPP_VERIFY_SIGNATURE:true}
   app-secret: ${WHATSAPP_APP_SECRET:3d9xxxx}
   access-token:
-    laundry: ${WHATSAPP_ACCESS_TOKEN_LAUNDRY:EAAWSNc4995QBRrihzX1BcgJ1BsK63IpqcvHkhlJ7ZCSU7pzFuQbA0rUSKN6ecInVl1ZCfQUmvQ6o8bW3zCUb9kNkbv24OQRETb0TIkZAfcMqbwpNi0gboZBgpyG8madAn5z1EYR0UzyhdZAtIZAAPEZAgMZApKqOAZBakjgoe73PiAZB4rH4ulgjbVuJRjGTEpzFKkuOAl868a7kmkatxK4ZBaWDgNnWOkvyEy31OWGHVFQPFZCiW8JJpFkTyWn6mUreM5TZCCoWENgjrZB6v9NpZCiyfKtagah}
+    laundry: ${WHATSAPP_ACCESS_TOKEN_LAUNDRY:EAAWSNc4995QBRjW2esyq6HbjCvdkRJdyU7U4vA8Tr1ncHbVZA0NZApnez4uUNSL9ryi5v3OwCpPKvRBZBfh4l5tmZCGO4ViEgWN1oDkPyi9Fb4RJnZBlDuRp4P1Ubf8YmJA1ie564PZAoKEUHTSkJwtA7FOkBFvLFcH2sKbjSZCN1e8FdzdNEgaZBxZCQjgt9XBzSguohlX1TWVrBZBQWadjZA2svbKi04f5viZA00tSjkeM0JxG89oafLiV34AS76NZATbd0bubwxQ5mwWQOQxiLFnZBANrHV}
     
 
 # Payment Configuration

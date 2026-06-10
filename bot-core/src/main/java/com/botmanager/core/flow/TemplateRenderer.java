@@ -5,6 +5,7 @@ import com.github.mustachejava.Mustache;
 import com.github.mustachejava.MustacheFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -20,7 +21,7 @@ public class TemplateRenderer {
     private final Map<String, Mustache> templateCache = new ConcurrentHashMap<>();
 
     public String render(String template, Map<String, Object> context) {
-        if (template == null || template.isBlank()) {
+        if (!StringUtils.hasText(template)) {
             return "";
         }
 

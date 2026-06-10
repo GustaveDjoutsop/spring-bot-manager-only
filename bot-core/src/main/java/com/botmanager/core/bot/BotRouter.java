@@ -2,6 +2,7 @@ package com.botmanager.core.bot;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -10,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
-public class BotRouter implements BotLookup {
+public class BotRouter extends BotLookup {
 
     private final Map<String, BaseBot> botsByName = new ConcurrentHashMap<>();
 
@@ -37,7 +38,7 @@ public class BotRouter implements BotLookup {
 
             botsByName.put(name, bot);
             botsByPhoneId.put(config.getPhoneNumberId(), bot);
-            if (config.getVerifyToken() != null && !config.getVerifyToken().isBlank()) {
+            if (StringUtils.hasText(config.getVerifyToken())) {
                 verifyTokenToBot.put(config.getVerifyToken(), name);
             }
 

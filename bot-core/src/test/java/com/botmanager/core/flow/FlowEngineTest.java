@@ -87,7 +87,7 @@ class FlowEngineTest {
         return config;
     }
 
-    private static class TestMessageSender implements MessageSender {
+    private static class TestMessageSender extends MessageSender {
 
         private final List<String> sentMessages = new java.util.ArrayList<>();
 

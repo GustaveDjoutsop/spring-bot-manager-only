@@ -11,6 +11,7 @@ import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -55,7 +56,7 @@ public class MqttManager {
                     .serverHost(host)
                     .serverPort(port);
 
-            if (mqttProperties.getUsername() != null && !mqttProperties.getUsername().isBlank()) {
+            if (StringUtils.hasText(mqttProperties.getUsername())) {
                 clientBuilder.simpleAuth()
                         .username(mqttProperties.getUsername())
                         .password(mqttProperties.getPassword().getBytes(StandardCharsets.UTF_8))

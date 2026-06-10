@@ -17,7 +17,7 @@ import java.util.Map;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class DefaultPaymentGateway implements PaymentGateway {
+public class DefaultPaymentGateway extends PaymentGateway {
 
     @Autowired
     @Qualifier("microserviceWebClient")

@@ -2,18 +2,18 @@ package com.botmanager.core.flow;
 
 import java.util.List;
 
-public interface MessageSender {
+public abstract class MessageSender {
 
-    void sendText(String to, String body);
+    public abstract void sendText(String to, String body);
 
-    void sendButtons(String to, String body, List<FlowState.ButtonOption> buttons);
+    public abstract void sendButtons(String to, String body, List<FlowState.ButtonOption> buttons);
 
-    void sendList(String to, ListMessage message);
+    public abstract void sendList(String to, ListMessage message);
 
-    record ListRow(String id, String title, String description) {}
+    public record ListRow(String id, String title, String description) {}
 
-    record ListSection(String title, List<ListRow> rows) {}
+    public record ListSection(String title, List<ListRow> rows) {}
 
-    record ListMessage(String body, String buttonText, List<ListSection> sections) {}
+    public record ListMessage(String body, String buttonText, List<ListSection> sections) {}
 
 }

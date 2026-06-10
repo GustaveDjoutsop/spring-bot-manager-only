@@ -3,6 +3,7 @@ package com.botmanager.config;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.util.StringUtils;
 
 @Getter
 @Setter
@@ -18,7 +19,7 @@ public class MqttProperties {
     private String topicPrefix;
 
     public boolean isConfigured() {
-        return url != null && !url.isBlank();
+        return StringUtils.hasText(url);
     }
 
 }

@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 
@@ -39,10 +40,10 @@ public final class BotConfigLoader {
     public static void resolveVerifyToken(BotConfig config, Environment environment) {
         String envKey = "VERIFY_TOKEN_" + config.getBotId().toUpperCase().replace("-", "_");
         String envToken = environment.getProperty(envKey);
-        if (envToken != null && !envToken.isBlank()) {
+        if (StringUtils.hasText(envToken)) {
             config.setVerifyToken(envToken);
         }
-        if (config.getVerifyToken() == null || config.getVerifyToken().isBlank()) {
+        if (!StringUtils.hasText(config.getVerifyToken())) {
             log.warn("Bot {} has no verifyToken configured (set env var {})", config.getBotId(), envKey);
         }
     }

@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
@@ -52,7 +53,7 @@ public class WhatsAppClientFactory {
                 String token = businessRepository.findByBotId(botId)
                         .map(business -> business.getAccessToken())
                         .orElse(null);
-                if (token != null && !token.isBlank()) {
+                if (StringUtils.hasText(token)) {
                     return token;
                 }
             } catch (Exception exception) {

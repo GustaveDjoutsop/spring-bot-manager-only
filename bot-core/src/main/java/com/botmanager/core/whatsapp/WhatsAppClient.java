@@ -5,6 +5,7 @@ import com.botmanager.core.flow.FlowState;
 import com.botmanager.core.flow.MessageSender;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 @Slf4j
-public class WhatsAppClient implements MessageSender {
+public class WhatsAppClient extends MessageSender {
 
     private static final int MAX_RETRIES = 3;
 
@@ -65,7 +66,7 @@ public class WhatsAppClient implements MessageSender {
                 Map<String, Object> rowMap = new HashMap<>();
                 rowMap.put("id", row.id());
                 rowMap.put("title", row.title());
-                if (row.description() != null && !row.description().isBlank()) {
+                if (StringUtils.hasText(row.description())) {
                     rowMap.put("description", row.description());
                 }
                 rows.add(rowMap);

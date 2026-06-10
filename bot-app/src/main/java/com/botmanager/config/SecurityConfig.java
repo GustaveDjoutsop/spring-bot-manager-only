@@ -13,6 +13,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.util.StringUtils;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -55,7 +56,7 @@ import java.util.List;
  *   <li>sls-bot-admin     - reserved for future admin-level bot operations</li>
  * </ul>
  */
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
@@ -137,7 +138,7 @@ public class SecurityConfig {
 
     @Bean
     public JwtDecoder jwtDecoder() {
-        if (issuerUri == null || issuerUri.isBlank()) {
+        if (!StringUtils.hasText(issuerUri)) {
             return token -> {
                 throw new BadJwtException("Auth0 issuer-uri not configured");
             };

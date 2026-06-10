@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
@@ -109,7 +110,7 @@ public class WhatsAppWebhookController {
         log.info(
                 "WhatsApp webhook event received: pathBot={}, signaturePresent={}, bytes={}, verifySignature={}",
                 botKey,
-                signature != null && !signature.isBlank(),
+                StringUtils.hasText(signature),
                 rawBody != null ? rawBody.length() : 0,
                 whatsAppProperties.isVerifySignature()
         );
@@ -175,7 +176,7 @@ public class WhatsAppWebhookController {
                 }
 
                 Object phoneId = metadata.get("phone_number_id");
-                if (phoneId instanceof String s && !s.isBlank()) {
+                if (phoneId instanceof String s && StringUtils.hasText(s)) {
                     return Optional.of(s);
                 }
             }
@@ -189,20 +190,20 @@ public class WhatsAppWebhookController {
             return botLookup.getBotByPhoneId(phoneNumberId)
                     .map(bot -> {
                         String botId = bot.getConfig() != null ? bot.getConfig().getBotId() : null;
-                        if (botId == null || botId.isBlank()) {
+                        if (!StringUtils.hasText(botId)) {
                             return null;
                         }
 
                         String envKey = "WHATSAPP_APP_SECRET_" + botId.toUpperCase().replace("-", "_");
 
                         String secret = environment.getProperty(envKey);
-                        if (secret == null || secret.isBlank()) {
+                        if (!StringUtils.hasText(secret)) {
                             secret = environment.getProperty("whatsapp.app-secret." + botId);
                         }
 
                         return secret;
                     })
-                    .filter(secret -> secret != null && !secret.isBlank())
+                    .filter(StringUtils::hasText)
                     .orElse(whatsAppProperties.getAppSecret());
         }
 

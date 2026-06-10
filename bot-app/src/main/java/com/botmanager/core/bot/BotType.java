@@ -2,6 +2,8 @@ package com.botmanager.core.bot;
 
 import java.util.Locale;
 
+import org.springframework.util.StringUtils;
+
 public enum BotType {
     LAUNDRY("laundry"),
     THOMAS_NETWORK("thomas_network");
@@ -13,7 +15,7 @@ public enum BotType {
     }
 
     public static BotType fromValue(String value) {
-        if (value == null || value.isBlank()) {
+        if (!StringUtils.hasText(value)) {
             return null;
         }
 

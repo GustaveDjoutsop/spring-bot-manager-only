@@ -2,12 +2,12 @@ package com.botmanager.core.bot;
 
 import java.util.Optional;
 
-public interface BotLookup {
+public abstract class BotLookup {
 
-    Optional<BaseBot> getBotByPhoneId(String phoneNumberId);
+    public abstract Optional<BaseBot> getBotByPhoneId(String phoneNumberId);
 
-    Optional<BaseBot> getBotByName(String name);
+    public abstract Optional<BaseBot> getBotByName(String name);
 
-    Optional<String> getBotNameByVerifyToken(String verifyToken);
+    public abstract Optional<String> getBotNameByVerifyToken(String verifyToken);
 
 }

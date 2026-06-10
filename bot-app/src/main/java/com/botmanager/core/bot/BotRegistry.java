@@ -23,6 +23,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.context.annotation.Primary;
+import org.springframework.util.StringUtils;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -37,7 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 @Primary
 @RequiredArgsConstructor
-public class BotRegistry implements BotLookup {
+public class BotRegistry extends BotLookup {
 
     private final BotProperties botProperties;
 
@@ -116,7 +117,7 @@ public class BotRegistry implements BotLookup {
 
         botsByName.put(name, bot);
         botsByPhoneId.put(config.getPhoneNumberId(), bot);
-        if (config.getVerifyToken() != null && !config.getVerifyToken().isBlank()) {
+        if (StringUtils.hasText(config.getVerifyToken())) {
             verifyTokenToBot.put(config.getVerifyToken(), name);
         }
 
@@ -302,13 +303,13 @@ public class BotRegistry implements BotLookup {
     }
 
     private boolean validateBotConfig(BotConfig config) {
-        if (config.getBotId() == null || config.getBotId().isBlank()) {
+        if (!StringUtils.hasText(config.getBotId())) {
             log.warn("Bot config missing botId");
 
             return false;
         }
 
-        if (config.getPhoneNumberId() == null || config.getPhoneNumberId().isBlank()) {
+        if (!StringUtils.hasText(config.getPhoneNumberId())) {
             log.warn("Bot {} missing phoneNumberId", config.getBotId());
 
             return false;
@@ -320,10 +321,10 @@ public class BotRegistry implements BotLookup {
     private void resolveVerifyToken(BotConfig config) {
         String envKey = "VERIFY_TOKEN_" + config.getBotId().toUpperCase().replace("-", "_");
         String envToken = environment.getProperty(envKey);
-        if (envToken != null && !envToken.isBlank()) {
+        if (StringUtils.hasText(envToken)) {
             config.setVerifyToken(envToken);
         }
-        if (config.getVerifyToken() == null || config.getVerifyToken().isBlank()) {
+        if (!StringUtils.hasText(config.getVerifyToken())) {
             log.warn("Bot {} has no verifyToken configured (set env var {})", config.getBotId(), envKey);
         }
     }

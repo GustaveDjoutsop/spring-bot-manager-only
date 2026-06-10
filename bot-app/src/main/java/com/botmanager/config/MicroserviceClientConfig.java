@@ -22,6 +22,7 @@ import org.springframework.security.oauth2.client.endpoint.DefaultClientCredenti
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.StringUtils;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -37,7 +38,7 @@ import java.util.List;
  * (configured via spring.security.oauth2.client.registration.smartlaundry-m2m or env vars).
  */
 @Slf4j
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(
         prefix = "spring.security.oauth2.client.registration.smartlaundry-m2m",
         name = "client-secret"
@@ -71,7 +72,7 @@ public class MicroserviceClientConfig {
             if (!reg.getScopes().isEmpty()) {
                 params.set("scope", String.join(" ", reg.getScopes()));
             }
-            if (audience != null && !audience.isBlank()) {
+            if (StringUtils.hasText(audience)) {
                 params.set("audience", audience);
             }
 
