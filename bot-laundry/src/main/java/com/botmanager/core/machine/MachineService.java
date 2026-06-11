@@ -206,6 +206,11 @@ public class MachineService {
         if (record.getMetadata() == null) {
             return;
         }
+        // Reservation payments are handled separately (see LaundryBot.handleReservationPaymentCompleted) —
+        // the machine must not be started immediately, only at the reserved slot's start time.
+        if (Boolean.TRUE.equals(record.getMetadata().get("isReservation"))) {
+            return;
+        }
         String machineId = (String) record.getMetadata().get("machineId");
         String program = (String) record.getMetadata().get("program");
         if (machineId != null) {

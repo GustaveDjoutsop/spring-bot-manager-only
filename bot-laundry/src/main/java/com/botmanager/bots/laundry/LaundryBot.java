@@ -113,7 +113,16 @@ public class LaundryBot extends BaseBot {
             String transactionReference = (String) reservationResponse.get("transactionReference");
 
             // Activate the reservation immediately since payment is already confirmed
-            machineService.activateReservation(transactionReference);
+            Map<String, Object> activationResponse = machineService.activateReservation(transactionReference);
+            if (activationResponse == null) {
+                log.error("Reservation created (code={}) but activation failed for customer={}, machine={}, transactionReference={}",
+                        reservationCode, customerPhone, machineId, transactionReference);
+                String message = translationService.translate("reservation_creation_failed", lang, Map.of(
+                        "machine", machineName
+                ));
+                sendMessage(customerPhone, message);
+                return;
+            }
 
             String message = translationService.translate("reservation_confirmed", lang, Map.of(
                     "machine", machineName,

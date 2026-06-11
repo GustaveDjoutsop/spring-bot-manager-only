@@ -1076,8 +1076,10 @@ public class LaundryFlowPlugin extends FlowPlugin {
                     ? translationService.translate("campay_err_default", lang)
                     : translated;
         }
-        // Fall back to raw message capped at 200 chars
-        return raw.length() > 200 ? raw.substring(0, 200) + "\u2026" : raw;
+        // Not a recognizable JSON error body \u2014 likely a transport-level failure
+        // (connection refused, timeout, etc.). Never show this raw to the user.
+        log.warn("Unrecognized payment error response, showing generic message: {}", raw);
+        return translationService.translate("campay_err_unavailable", lang);
     }
 
     private String extractJsonField(String text, String fieldName) {

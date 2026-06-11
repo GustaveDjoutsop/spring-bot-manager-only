@@ -15,7 +15,11 @@
       "Bash(PGPASSWORD=smartbot '/c/Program Files/PostgreSQL/16/bin/psql.exe' -h localhost -p 15432 -U smartbot -d smartbot -c ' *)",
       "Bash(mvn package *)",
       "Bash(mvn -pl bot-app spring-boot:run -Dspring-boot.run.profiles=local)",
-      "Bash(mvn install *)"
+      "Bash(mvn install *)",
+      "Read(//tmp/**)",
+      "Read(//c/tmp/**)",
+      "Bash(grep -rn \"PaymentException\\\\|\\\\\"error\\\\\"\\\\|getCode\\\\|getMessage\\\\|ExceptionHandler\" \"C:/Users/sunda/Codierung/PaymentManagementService/src/main/java\" 2>/dev/null | grep -i \"exception\\\\|error\" | head -30)",
+      "Read(//c/Users/sunda/Codierung/PaymentManagementService/src/main/java/**)"
     ],
     "additionalDirectories": [
       "c:\\Users\\sunda\\Codierung\\spring-bot-manager-only",
