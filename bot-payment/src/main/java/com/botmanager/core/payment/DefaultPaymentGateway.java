@@ -9,6 +9,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -96,6 +97,15 @@ public class DefaultPaymentGateway extends PaymentGateway {
                     .errorMessage("Payment service returned empty response")
                     .build();
 
+        } catch (WebClientResponseException exception) {
+            String responseBody = exception.getResponseBodyAsString();
+            log.error("Failed to initiate payment via PaymentManagementService: {} - {}",
+                    exception.getMessage(), responseBody);
+
+            return PaymentResult.builder()
+                    .success(false)
+                    .errorMessage(responseBody != null && !responseBody.isBlank() ? responseBody : exception.getMessage())
+                    .build();
         } catch (Exception exception) {
             log.error("Failed to initiate payment via PaymentManagementService: {}", exception.getMessage());
 

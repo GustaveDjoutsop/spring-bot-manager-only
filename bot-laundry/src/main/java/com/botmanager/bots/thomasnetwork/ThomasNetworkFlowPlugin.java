@@ -314,8 +314,13 @@ public class ThomasNetworkFlowPlugin extends FlowPlugin {
         if (raw.contains("<html") || raw.contains("<!DOCTYPE")) {
             return translationService.translate("campay_err_unavailable", lang);
         }
-        String errorCode = extractJsonField(raw, "error_code");
+        // Extract and map the provider error code from PaymentManagementService's error body,
+        // e.g. {"error":"CAMPAY_ER102","message":"..."}
+        String errorCode = extractJsonField(raw, "error");
         if (errorCode != null) {
+            if (errorCode.startsWith("CAMPAY_")) {
+                errorCode = errorCode.substring("CAMPAY_".length());
+            }
             String translationKey = "campay_err_" + errorCode;
             String translated = translationService.translate(translationKey, lang);
             return translationKey.equals(translated)

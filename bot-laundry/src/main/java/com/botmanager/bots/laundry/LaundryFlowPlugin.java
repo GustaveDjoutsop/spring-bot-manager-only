@@ -1062,9 +1062,13 @@ public class LaundryFlowPlugin extends FlowPlugin {
         if (raw.contains("<html") || raw.contains("<!DOCTYPE")) {
             return translationService.translate("campay_err_unavailable", lang);
         }
-        // Extract and map CamPay error_code from JSON body (e.g. 400 Bad Request: "{...}")
-        String errorCode = extractJsonField(raw, "error_code");
+        // Extract and map the provider error code from PaymentManagementService's error body,
+        // e.g. {"error":"CAMPAY_ER102","message":"..."}
+        String errorCode = extractJsonField(raw, "error");
         if (errorCode != null) {
+            if (errorCode.startsWith("CAMPAY_")) {
+                errorCode = errorCode.substring("CAMPAY_".length());
+            }
             String translationKey = "campay_err_" + errorCode;
             String translated = translationService.translate(translationKey, lang);
             // translate() returns the key itself when not found — fall back to default

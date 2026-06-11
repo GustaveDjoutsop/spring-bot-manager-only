@@ -18,7 +18,8 @@
       "Bash(mvn install *)"
     ],
     "additionalDirectories": [
-      "c:\\Users\\sunda\\Codierung\\spring-bot-manager-only"
+      "c:\\Users\\sunda\\Codierung\\spring-bot-manager-only",
+      "C:\\Users\\sunda\\Codierung\\PaymentManagementService\\src\\main\\java\\com\\smartlaundromat\\payment\\service\\provider"
     ]
   }
 }
