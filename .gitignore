@@ -50,3 +50,7 @@ integration-tests/test-output/
 *.pid
 *.seed
 *.pid.lock
+
+
+# Doppler CLI local config (machine-specific config selection)
+.doppler.yaml
