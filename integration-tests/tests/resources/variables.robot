@@ -6,9 +6,12 @@ ${WIREMOCK_MACHINE_URL}     http://localhost:9092
 ${CONTENT_TYPE}             application/json
 
 # ── Auth0 credentials (dev tenant) ───────────────────────────────────────────
+# No credentials here — CI always passes AUTH0_CLIENT_ID/AUTH0_CLIENT_SECRET via
+# --variable (see .github/workflows/pull-request.yml). To run locally, pass your
+# own dev M2M credentials the same way: --variable AUTH0_CLIENT_ID:... etc.
 ${AUTH0_TOKEN_URL}          https://dev-iuo6si32jobgnmod.eu.auth0.com/oauth/token
-${AUTH0_CLIENT_ID}          qrhBuc3lsJfRqsP8xKWAO334DOsseidM
-${AUTH0_CLIENT_SECRET}      5_L-EOe5BBn3g2V9egVHWnKJkabkxtqom4kIqxluEx8J0N6VEbFtG7XPdoCZln7G
+${AUTH0_CLIENT_ID}          ${EMPTY}
+${AUTH0_CLIENT_SECRET}      ${EMPTY}
 ${AUTH0_AUDIENCE}           https://smartlaundry.api
 ${AUTH0_SCOPE}              sls-machine-read sls-payment-read
 

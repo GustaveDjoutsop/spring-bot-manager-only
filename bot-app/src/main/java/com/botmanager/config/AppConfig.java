@@ -4,21 +4,23 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.concurrent.Executor;
 
+@Slf4j
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties({
         WhatsAppProperties.class,
@@ -64,17 +66,23 @@ public class AppConfig {
         return restTemplate;
     }
 
-    /** Fallback used when OAuth2 client credentials are not configured. */
+    /**
+     * Fail-closed fallback used when the Auth0 M2M client (smartlaundry-m2m) is not
+     * configured. Every call through this client errors immediately instead of being
+     * sent to PaymentManagementService/MachineStateService without an Authorization
+     * header — those services now require a Bearer token, so an unauthenticated
+     * request would either be silently rejected or, worse, succeed against an
+     * endpoint that isn't yet locked down.
+     */
     @Bean("microserviceWebClient")
-    @ConditionalOnProperty(
-            name = "spring.security.oauth2.client.registration.smartlaundry-m2m.client-secret",
-            havingValue = "false",
-            matchIfMissing = true
-    )
+    @ConditionalOnExpression("'${spring.security.oauth2.client.registration.smartlaundry-m2m.client-secret:}' == ''")
     WebClient microserviceWebClientFallback() {
+        log.error("Auth0 M2M client 'smartlaundry-m2m' is not configured (missing client-secret) — "
+                + "inter-service calls to PaymentManagementService/MachineStateService will fail closed.");
         return WebClient.builder()
-                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                .filter((request, next) -> Mono.error(new IllegalStateException(
+                        "Refusing unauthenticated call to " + request.url()
+                                + " — configure spring.security.oauth2.client.registration.smartlaundry-m2m.client-secret")))
                 .build();
     }
 
