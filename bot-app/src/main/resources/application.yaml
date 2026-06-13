@@ -44,7 +44,7 @@ spring:
           smartlaundry-m2m:
             provider: auth0
             client-id: ${AUTH0_CLIENT_ID:6UGj1BFYTVTUdSC2AklgNsGoXqbCWlGZ}
-            client-secret: ${AUTH0_CLIENT_SECRET:tyC8-ROfwjnO_HThDoQMzuHvwcNiPE4IhSQiTi6V2dIc2mqcOqa1bKR2pEEeUVph}
+            client-secret: ${AUTH0_CLIENT_SECRET:}
             authorization-grant-type: client_credentials
             scope: sls-machine-read, sls-machine-write, sls-payment-write, sls-rfid-read, sls-rfid-manage, sls-rfid-debit, sls-payment-read, sls-payment-initiate, sls-topup-manage, sls-machine-start, sls-machine-command, sls-telemetry-write, sls-bot-admin
             #scope: sls-machine-read,sls-machine-write,sls-payment-write,sls-payment-read,sls-payment-initiate,sls-machine-start,sls-machine-command,sls-telemetry-write,sls-bot-admin
@@ -68,7 +68,7 @@ whatsapp:
   verify-signature: ${WHATSAPP_VERIFY_SIGNATURE:true}
   app-secret: ${WHATSAPP_APP_SECRET:3d9xxxx}
   access-token:
-    laundry: ${WHATSAPP_ACCESS_TOKEN_LAUNDRY:EAAWSNc4995QBRvbjHqObzsaIu4fWq38yrBH5mC8nAvQ8mZAZCe24MeehtCwjREZAxfR7CjnHROZBeQdqr4DlitZAQzzfURpJrB4OiE60jkZBmRkHiQl5yCJHHIKCesw1htK7mOYyd9rJZAxq4U7piikux4t8ofOZCPzxfWgznpuoy7Safs6tjhr3ZAtwHLc0auygZBZC6WhqojCVi9RD1AdBddJv7MhKlpwAd3oA4Fj2v8A6pEfniSSSEvtH4NbvAI8haxeuyUoKFFmGX7ZAN0KlOsWi8ooJZCAZDZD}
+    laundry: ${WHATSAPP_ACCESS_TOKEN_LAUNDRY:}
     
 
 # Payment Configuration
