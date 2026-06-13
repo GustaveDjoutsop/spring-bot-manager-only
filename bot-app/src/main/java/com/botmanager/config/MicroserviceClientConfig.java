@@ -2,7 +2,7 @@ package com.botmanager.config;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
@@ -39,10 +39,7 @@ import java.util.List;
  */
 @Slf4j
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnProperty(
-        prefix = "spring.security.oauth2.client.registration.smartlaundry-m2m",
-        name = "client-secret"
-)
+@ConditionalOnExpression("'${spring.security.oauth2.client.registration.smartlaundry-m2m.client-secret:}' != ''")
 public class MicroserviceClientConfig {
 
     private static final Authentication SYSTEM_PRINCIPAL = new AnonymousAuthenticationToken(
