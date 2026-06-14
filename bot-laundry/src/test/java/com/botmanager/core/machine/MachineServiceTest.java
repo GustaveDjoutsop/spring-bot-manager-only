@@ -6,6 +6,9 @@ import com.botmanager.core.payment.PaymentEventPublisher;
 import com.botmanager.core.payment.PaymentRecord;
 import com.botmanager.core.payment.PaymentStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.bulkhead.BulkheadRegistry;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.retry.RetryRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -61,7 +64,8 @@ class MachineServiceTest {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-        machineService = new MachineService(machineStore, objectMapper);
+        machineService = new MachineService(machineStore, objectMapper,
+                CircuitBreakerRegistry.ofDefaults(), BulkheadRegistry.ofDefaults(), RetryRegistry.ofDefaults());
         ReflectionTestUtils.setField(machineService, "webClient", webClient);
         ReflectionTestUtils.setField(machineService, "machineStateServiceUrl", "http://localhost:8082");
     }

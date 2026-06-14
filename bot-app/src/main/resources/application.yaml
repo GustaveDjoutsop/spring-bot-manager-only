@@ -59,6 +59,13 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+  # ── Distributed tracing (P1 — OpenTelemetry via Micrometer Tracing) ────────
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/traces
 
 # WhatsApp Configuration
 whatsapp:
@@ -101,6 +108,57 @@ mqtt:
   username: ${MQTT_USERNAME:}
   password: ${MQTT_PASSWORD:}
   topic-prefix: ${MQTT_TOPIC_PREFIX:}
+
+# ── Resilience4j (P1 — inter-service hops) ───────────────────────────────────
+# bot -> payment (DefaultPaymentGateway) and bot -> machine (MachineService),
+# both via microserviceWebClient. Connect/response timeouts are set on that
+# WebClient itself (MicroserviceClientConfig). Retry is only enabled for the
+# read instances (idempotent GETs: check payment status, fetch machine state).
+resilience4j:
+  circuitbreaker:
+    instances:
+      paymentService:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+      machineService:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+  bulkhead:
+    instances:
+      paymentService:
+        max-concurrent-calls: 20
+        max-wait-duration: 0
+      machineService:
+        max-concurrent-calls: 20
+        max-wait-duration: 0
+  retry:
+    instances:
+      paymentServiceRead:
+        max-attempts: 3
+        wait-duration: 500ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.io.IOException
+          - org.springframework.web.reactive.function.client.WebClientRequestException
+      machineServiceRead:
+        max-attempts: 3
+        wait-duration: 500ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.io.IOException
+          - org.springframework.web.reactive.function.client.WebClientRequestException
 
 # Rate Limiting
 rate-limit:
@@ -170,4 +228,4 @@ logging:
     com.botmanager.bots.laundry: ${LOG_LEVEL_LAUNDRY:INFO}
     com.botmanager.core.whatsapp: ${LOG_LEVEL_WHATSAPP:INFO}
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} %-5level [%logger{36}] - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss} %-5level [%logger{36}] [traceId=%X{traceId:-}, correlationId=%X{correlationId:-}] - %msg%n"

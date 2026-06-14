@@ -4,6 +4,12 @@ import com.botmanager.bots.laundry.LaundryBotConfig;
 import com.botmanager.core.payment.PaymentEventPublisher;
 import com.botmanager.core.payment.PaymentRecord;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.bulkhead.Bulkhead;
+import io.github.resilience4j.bulkhead.BulkheadRegistry;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.retry.Retry;
+import io.github.resilience4j.retry.RetryRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +24,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 @Slf4j
 @Service
@@ -32,8 +39,32 @@ public class MachineService {
     @Qualifier("microserviceWebClient")
     private WebClient webClient;
 
+    private final CircuitBreakerRegistry circuitBreakerRegistry;
+
+    private final BulkheadRegistry bulkheadRegistry;
+
+    private final RetryRegistry retryRegistry;
+
     @Value("${microservice.machine-state-service-url:http://localhost:8082}")
     private String machineStateServiceUrl;
+
+    private <T> T callMachineService(Supplier<T> call) {
+        Supplier<T> decorated = Bulkhead.decorateSupplier(
+                bulkheadRegistry.bulkhead("machineService"), call);
+        decorated = CircuitBreaker.decorateSupplier(
+                circuitBreakerRegistry.circuitBreaker("machineService"), decorated);
+        return decorated.get();
+    }
+
+    private <T> T callMachineServiceRead(Supplier<T> call) {
+        Supplier<T> decorated = Bulkhead.decorateSupplier(
+                bulkheadRegistry.bulkhead("machineService"), call);
+        decorated = CircuitBreaker.decorateSupplier(
+                circuitBreakerRegistry.circuitBreaker("machineService"), decorated);
+        decorated = Retry.decorateSupplier(
+                retryRegistry.retry("machineServiceRead"), decorated);
+        return decorated.get();
+    }
 
     private final Map<String, LaundryBotConfig> botConfigs = new ConcurrentHashMap<>();
 
@@ -48,11 +79,11 @@ public class MachineService {
 
     public List<MachineRecord> getMachines(String botId) {
         try {
-            Map<String, Object> response = webClient.get()
+            Map<String, Object> response = callMachineServiceRead(() -> webClient.get()
                     .uri(machineStateServiceUrl + "/api/machines")
                     .retrieve()
                     .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-                    .block();
+                    .block());
 
             if (response != null) {
                 return mapMachineListFromResponse(botId, response);
@@ -68,11 +99,11 @@ public class MachineService {
 
     public Optional<MachineRecord> getMachine(String botId, String machineId) {
         try {
-            Map<String, Object> response = webClient.get()
+            Map<String, Object> response = callMachineServiceRead(() -> webClient.get()
                     .uri(machineStateServiceUrl + "/api/machines/" + machineId)
                     .retrieve()
                     .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-                    .block();
+                    .block());
 
             if (response != null) {
                 return Optional.of(mapMachineFromResponse(botId, response));
@@ -101,13 +132,13 @@ public class MachineService {
             body.put("pulseCount", resolvePulseCount(botId, program));
             body.put("transactionReference", transactionId);
 
-            webClient.post()
+            callMachineService(() -> webClient.post()
                     .uri(machineStateServiceUrl + "/api/machines/start-cycle")
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(body)
                     .retrieve()
                     .toBodilessEntity()
-                    .block();
+                    .block());
 
             log.info("Sent start-cycle to MachineStateService: machine={}, program={}", machineId, program);
         } catch (Exception exception) {
@@ -117,11 +148,11 @@ public class MachineService {
 
     public void stopMachine(String botId, String machineId, String transactionId) {
         try {
-            webClient.post()
+            callMachineService(() -> webClient.post()
                     .uri(machineStateServiceUrl + "/api/machines/" + machineId + "/command/stop")
                     .retrieve()
                     .toBodilessEntity()
-                    .block();
+                    .block());
             log.info("Sent STOP command to machine {} via MachineStateService", machineId);
         } catch (Exception exception) {
             log.error("Failed to stop machine {}: {}", machineId, exception.getMessage());
@@ -130,11 +161,11 @@ public class MachineService {
 
     public void requestStatus(String botId, String machineId) {
         try {
-            webClient.post()
+            callMachineService(() -> webClient.post()
                     .uri(machineStateServiceUrl + "/api/machines/" + machineId + "/command/status")
                     .retrieve()
                     .toBodilessEntity()
-                    .block();
+                    .block());
         } catch (Exception exception) {
             log.warn("Failed to request status for machine {}: {}", machineId, exception.getMessage());
         }
@@ -156,13 +187,13 @@ public class MachineService {
 
             log.info("Creating reservation via MachineStateService: machineId={}, slotStart={}", machineId, slotStart);
 
-            Map<String, Object> response = webClient.post()
+            Map<String, Object> response = callMachineService(() -> webClient.post()
                     .uri(machineStateServiceUrl + "/api/reservations")
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-                    .block();
+                    .block());
 
             log.info("Reservation created successfully: {}", response);
             return response;
@@ -184,13 +215,13 @@ public class MachineService {
 
             log.info("Activating reservation via MachineStateService: transactionReference={}", transactionReference);
 
-            Map<String, Object> response = webClient.post()
+            Map<String, Object> response = callMachineService(() -> webClient.post()
                     .uri(machineStateServiceUrl + "/api/reservations/activate")
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-                    .block();
+                    .block());
 
             log.info("Reservation activated successfully: {}", response);
             return response;

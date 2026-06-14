@@ -1,6 +1,12 @@
 package com.botmanager.core.payment;
 
 import com.botmanager.config.MicroserviceProperties;
+import io.github.resilience4j.bulkhead.Bulkhead;
+import io.github.resilience4j.bulkhead.BulkheadRegistry;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.retry.Retry;
+import io.github.resilience4j.retry.RetryRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +20,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 
 @Slf4j
 @Component
@@ -29,6 +36,30 @@ public class DefaultPaymentGateway extends PaymentGateway {
     private final PaymentStore paymentStore;
 
     private final PaymentEventPublisher paymentEventPublisher;
+
+    private final CircuitBreakerRegistry circuitBreakerRegistry;
+
+    private final BulkheadRegistry bulkheadRegistry;
+
+    private final RetryRegistry retryRegistry;
+
+    private <T> T callPaymentService(Supplier<T> call) {
+        Supplier<T> decorated = Bulkhead.decorateSupplier(
+                bulkheadRegistry.bulkhead("paymentService"), call);
+        decorated = CircuitBreaker.decorateSupplier(
+                circuitBreakerRegistry.circuitBreaker("paymentService"), decorated);
+        return decorated.get();
+    }
+
+    private <T> T callPaymentServiceRead(Supplier<T> call) {
+        Supplier<T> decorated = Bulkhead.decorateSupplier(
+                bulkheadRegistry.bulkhead("paymentService"), call);
+        decorated = CircuitBreaker.decorateSupplier(
+                circuitBreakerRegistry.circuitBreaker("paymentService"), decorated);
+        decorated = Retry.decorateSupplier(
+                retryRegistry.retry("paymentServiceRead"), decorated);
+        return decorated.get();
+    }
 
     @Override
     public PaymentResult initiatePayment(PaymentRequest request) {
@@ -48,13 +79,13 @@ public class DefaultPaymentGateway extends PaymentGateway {
 
             log.debug("Payment initiation request body: {}", body);
 
-            Map<String, Object> responseBody = webClient.post()
+            Map<String, Object> responseBody = callPaymentService(() -> webClient.post()
                     .uri(url)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-                    .block();
+                    .block());
 
             if (responseBody != null) {
                 boolean success = Boolean.TRUE.equals(responseBody.get("success"));
@@ -122,11 +153,11 @@ public class DefaultPaymentGateway extends PaymentGateway {
                 + "/api/payments/transaction/" + transactionId;
 
         try {
-            Map<String, Object> response = webClient.get()
+            Map<String, Object> response = callPaymentServiceRead(() -> webClient.get()
                     .uri(url)
                     .retrieve()
                     .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-                    .block();
+                    .block());
 
             if (response != null) {
                 return PaymentStatus.fromValue((String) response.get("status"));
@@ -144,13 +175,13 @@ public class DefaultPaymentGateway extends PaymentGateway {
                 + "/api/webhook/" + providerName;
 
         try {
-            webClient.post()
+            callPaymentService(() -> webClient.post()
                     .uri(webhookUrl)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(payload)
                     .retrieve()
                     .toBodilessEntity()
-                    .block();
+                    .block());
 
             String externalRef = (String) payload.get("external_reference");
             if (externalRef == null) {

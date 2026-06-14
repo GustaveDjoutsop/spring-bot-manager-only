@@ -1,6 +1,7 @@
 package com.botmanager.config;
 
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
@@ -21,13 +22,17 @@ import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.endpoint.DefaultClientCredentialsTokenResponseClient;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.StringUtils;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.WebClient;
+import io.netty.channel.ChannelOption;
+import reactor.netty.http.client.HttpClient;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.List;
 
 /**
@@ -92,9 +97,24 @@ public class MicroserviceClientConfig {
     @Bean("microserviceWebClient")
     public WebClient microserviceWebClient(OAuth2AuthorizedClientManager microserviceAuthorizedClientManager) {
         log.info("Microservice WebClient configured with OAuth2 client credentials ({})", registrationId);
+        HttpClient httpClient = HttpClient.create()
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5_000)
+                .responseTimeout(Duration.ofSeconds(10));
         return WebClient.builder()
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                .filter((request, next) -> {
+                    // Forward the current request's correlation ID (see CorrelationIdFilter) downstream.
+                    String correlationId = MDC.get(CorrelationIdFilter.MDC_KEY);
+                    if (correlationId != null) {
+                        ClientRequest withCorrelationId = ClientRequest.from(request)
+                                .header(CorrelationIdFilter.HEADER, correlationId)
+                                .build();
+                        return next.exchange(withCorrelationId);
+                    }
+                    return next.exchange(request);
+                })
                 .filter((request, next) -> {
                     try {
                         OAuth2AuthorizeRequest authorizeRequest = OAuth2AuthorizeRequest
