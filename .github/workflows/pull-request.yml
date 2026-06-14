@@ -199,9 +199,9 @@ jobs:
 
       - name: Start spring-bot-manager-only
         env:
-          DATABASE_URL: jdbc:h2:mem:integrationtestdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
-          DATABASE_USERNAME: sa
-          DATABASE_PASSWORD: ""
+          SPRING_DATASOURCE_URL: jdbc:h2:mem:integrationtestdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+          SPRING_DATASOURCE_USERNAME: sa
+          SPRING_DATASOURCE_PASSWORD: ""
           JWT_SECRET: integration-test-secret-must-be-at-least-32-chars
           WHATSAPP_VERIFY_SIGNATURE: "false"
           WHATSAPP_API_BASE: http://localhost:9090
@@ -212,6 +212,10 @@ jobs:
           ADMIN_PASSWORD: test-password
           SPRING_FLYWAY_ENABLED: "false"
           SPRING_JPA_HIBERNATE_DDL_AUTO: create-drop
+          # P3: base application.yaml now targets schema "bot" (Supabase
+          # consolidation) — H2 needs an explicit CREATE SCHEMA for ddl-auto
+          # to create tables there.
+          SPRING_JPA_PROPERTIES_HIBERNATE_HBM2DDL_CREATE_NAMESPACES: "true"
           # Auth0 dev tenant — resource server validates Bearer tokens issued here
           AUTH0_ISSUER_URI: https://dev-iuo6si32jobgnmod.eu.auth0.com/
           AUTH0_AUDIENCE: https://smartlaundry.api
