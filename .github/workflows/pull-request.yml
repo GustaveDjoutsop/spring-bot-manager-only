@@ -209,7 +209,8 @@ jobs:
           WHATSAPP_API_BASE: http://localhost:9090
           PAYMENT_SERVICE_URL: http://localhost:9091
           MACHINE_STATE_SERVICE_URL: http://localhost:9092
-          BOT_CONFIG_DIRECTORY: ${{ github.workspace }}/integration-tests/configs/bots
+          BOT_CONFIG_DIRECTORY: ${{ github.workspace }}/configs/bots
+          VERIFY_TOKEN_LAUNDRY: test-verify-token
           ADMIN_USERNAME: admin
           ADMIN_PASSWORD: test-password
           SPRING_FLYWAY_ENABLED: "false"
