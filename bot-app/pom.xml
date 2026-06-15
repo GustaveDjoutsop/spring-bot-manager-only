@@ -82,11 +82,13 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Test -->
+        <!-- H2 — runtime scope so the repackaged jar can use it as the
+             integration-test datasource (CI starts the jar with
+             SPRING_DATASOURCE_URL=jdbc:h2:mem:...) -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <scope>test</scope>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.assertj</groupId>
