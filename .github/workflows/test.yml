@@ -1,11 +1,16 @@
-name: Deploy to Production
+name: Test Release
 
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Release tag to deploy (defaults to the latest GitHub Release, e.g. v0.1.0)'
+      version:
+        description: 'Release version to publish (e.g. v0.2.0)'
+        required: true
+        type: string
+      ref:
+        description: 'Branch or commit to release from'
         required: false
+        default: 'develop'
         type: string
 
 env:
@@ -13,34 +18,16 @@ env:
   IMAGE_NAME: ${{ secrets.DO_REGISTRY_NAME }}/spring-bot-manager
 
 jobs:
-  resolve-release:
+  build-and-release:
     runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.release.outputs.tag }}
-
-    steps:
-      - name: Resolve release tag
-        id: release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ -n "${{ github.event.inputs.tag }}" ]; then
-            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
-          else
-            latest=$(gh release view --repo ${{ github.repository }} --json tagName -q .tagName)
-            echo "tag=$latest" >> "$GITHUB_OUTPUT"
-          fi
-
-  build-and-push:
-    runs-on: ubuntu-latest
-    needs: resolve-release
-    environment: production
+    environment: TEST
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.resolve-release.outputs.tag }}
+          ref: ${{ github.event.inputs.ref }}
+          fetch-depth: 0
 
       - name: Set up JDK 25
         uses: actions/setup-java@v4
@@ -49,8 +36,11 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build with Maven
-        run: mvn clean package -DskipTests -B
+      - name: Build and test
+        run: mvn clean verify -B
+
+      - name: Package
+        run: mvn package -DskipTests -B
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -68,21 +58,28 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.resolve-release.outputs.tag }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.inputs.version }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:test-latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  deploy:
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          target_commitish: ${{ github.event.inputs.ref }}
+          generate_release_notes: true
+
+  deploy-test:
     runs-on: ubuntu-latest
-    needs: [resolve-release, build-and-push]
-    environment: production
+    needs: build-and-release
+    environment: staging
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.resolve-release.outputs.tag }}
+          ref: ${{ github.event.inputs.ref }}
 
       - name: Set up Helm
         uses: azure/setup-helm@v3
@@ -92,15 +89,15 @@ jobs:
       - name: Configure kubectl
         uses: azure/k8s-set-context@v3
         with:
-          kubeconfig: ${{ secrets.PROD_KUBECONFIG }}
+          kubeconfig: ${{ secrets.STAGING_KUBECONFIG }}
 
-      - name: Deploy to Kubernetes (Production)
+      - name: Deploy to Kubernetes (Test)
         run: |
           helm upgrade --install spring-bot-manager ./ci/helm-chart \
-            -f ./ci/helm-values/prod.yaml \
+            -f ./ci/helm-values/staging.yaml \
             --set image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
-            --set image.tag=${{ needs.resolve-release.outputs.tag }} \
-            --namespace bot-manager \
+            --set image.tag=${{ github.event.inputs.version }} \
+            --namespace bot-manager-staging \
             --create-namespace \
             --wait \
             --timeout 5m
