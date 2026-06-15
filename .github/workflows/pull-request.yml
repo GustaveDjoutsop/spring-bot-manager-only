@@ -244,9 +244,9 @@ jobs:
         run: |
           robot \
             --outputdir integration-tests/results \
-            --log integration-tests/results/log.html \
-            --report integration-tests/results/report.html \
-            --xunit integration-tests/results/xunit.xml \
+            --log log.html \
+            --report report.html \
+            --xunit xunit.xml \
             --variable BOT_ID:laundry \
             --variable VERIFY_TOKEN:test-verify-token \
             --variable AUTH0_CLIENT_ID:"${AUTH0_CLIENT_ID}" \
