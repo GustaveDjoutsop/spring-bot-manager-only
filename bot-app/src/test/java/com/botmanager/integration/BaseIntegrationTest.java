@@ -12,32 +12,36 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 @ActiveProfiles("integration")
-@Testcontainers
 public abstract class BaseIntegrationTest {
 
-    @Container
     private static final PostgreSQLContainer<?> postgres =
             new PostgreSQLContainer<>("postgres:16-alpine")
                     .withDatabaseName("botmanager")
                     .withUsername("botmanager")
                     .withPassword("botmanager");
 
-    @Container
     private static final GenericContainer<?> redis =
             new GenericContainer<>("redis:7-alpine")
                     .withExposedPorts(6379);
+
+    static {
+        // Singleton container pattern: start once and let Testcontainers' Ryuk
+        // reaper clean up at JVM exit. Per-class @Container lifecycle would stop
+        // these after the first IT class's afterAll, leaving later classes'
+        // cached Spring contexts pointed at a dead container port.
+        postgres.start();
+        redis.start();
+    }
 
     @DynamicPropertySource
     static void registerDynamicProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
-        registry.add("spring.redis.host", redis::getHost);
-        registry.add("spring.redis.port", () -> redis.getMappedPort(6379));
+        registry.add("spring.data.redis.host", redis::getHost);
+        registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
     }
 
     @Autowired

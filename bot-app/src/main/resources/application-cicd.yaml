@@ -1,7 +1,7 @@
 # CI/CD Environment Configuration
 spring:
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/smartbot}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/smartbot}
   data:
     redis:
       url: ${REDIS_URL:redis://localhost:6379}

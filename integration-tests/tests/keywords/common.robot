@@ -24,7 +24,7 @@ Get Auth0 Bearer Token
     ${resp}=    POST On Session    _auth0    /oauth/token
     ...    json=${body}    expected_status=200
     ${token}=    Set Variable    ${resp.json()}[access_token]
-    Delete Session    _auth0
+    Delete All Sessions
     RETURN    ${token}
 
 # ── Session management ─────────────────────────────────────────────────────────
@@ -64,9 +64,10 @@ Build WhatsApp Button Reply Payload
     RETURN    ${payload}
 
 Post WhatsApp Webhook
+    [Documentation]    The webhook endpoint returns a plain-text body ("EVENT_RECEIVED"), not JSON.
     [Arguments]    ${payload}
     ${resp}=    POST On Session    bot    /api/whatsapp/webhook    json=${payload}    expected_status=200
-    RETURN    ${resp.json()}
+    RETURN    ${resp.text}
 
 # ── Machine proxy helpers ──────────────────────────────────────────────────────
 

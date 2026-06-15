@@ -15,17 +15,22 @@ spring:
 
   # PostgreSQL Configuration
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:15432/smartbot}
-    username: ${DATABASE_USERNAME:smartbot}
-    password: ${DATABASE_PASSWORD:smartbot}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:15432/smartbot}
+    username: ${SPRING_DATASOURCE_USERNAME:smartbot}
+    password: ${SPRING_DATASOURCE_PASSWORD:smartbot}
 
   jpa:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+    properties:
+      hibernate:
+        default_schema: bot
 
   flyway:
     enabled: true
+    schemas: bot
+    default-schema: bot
 
   # ── Security: Auth0 Resource Server + M2M client ───────────────────────────
   security:

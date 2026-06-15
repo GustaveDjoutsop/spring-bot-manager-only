@@ -62,10 +62,14 @@ class LaundryFlowPluginTest {
         config.setShortCycle(new CycleConfig(30, 1000, 1));
         config.setLongCycle(new CycleConfig(60, 2000, 2));
 
+        // Span the full day so canStartCycle() doesn't flip to "closed" depending on
+        // the wall-clock time the test happens to run at (it was flaking near 22:00
+        // Africa/Douala, since the 07:00-22:00 + 15min-buffer window excludes the
+        // last ~45 minutes before close for a 30-minute cycle).
         LaundryBotConfig.BusinessHoursConfig hours = new LaundryBotConfig.BusinessHoursConfig();
-        hours.setOpenTime("07:00");
-        hours.setCloseTime("22:00");
-        hours.setClosingBufferMinutes(15);
+        hours.setOpenTime("00:00");
+        hours.setCloseTime("23:59");
+        hours.setClosingBufferMinutes(0);
         hours.setTimezone("Africa/Douala");
         config.setBusinessHours(hours);
 
