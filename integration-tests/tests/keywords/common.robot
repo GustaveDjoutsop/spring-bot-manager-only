@@ -64,9 +64,10 @@ Build WhatsApp Button Reply Payload
     RETURN    ${payload}
 
 Post WhatsApp Webhook
+    [Documentation]    The webhook endpoint returns a plain-text body ("EVENT_RECEIVED"), not JSON.
     [Arguments]    ${payload}
     ${resp}=    POST On Session    bot    /api/whatsapp/webhook    json=${payload}    expected_status=200
-    RETURN    ${resp.json()}
+    RETURN    ${resp.text}
 
 # ── Machine proxy helpers ──────────────────────────────────────────────────────
 

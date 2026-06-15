@@ -222,6 +222,11 @@ jobs:
           # Auth0 dev tenant — resource server validates Bearer tokens issued here
           AUTH0_ISSUER_URI: https://dev-iuo6si32jobgnmod.eu.auth0.com/
           AUTH0_AUDIENCE: https://smartlaundry.api
+          # M2M credentials for the smartlaundry-m2m client-credentials registration
+          # (MicroserviceClientConfig) — without these, microserviceWebClientFallback
+          # fails closed on every call to PaymentManagementService/MachineStateService.
+          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_DEV_CLIENT_ID }}
+          AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_DEV_CLIENT_SECRET }}
         run: |
           java -jar bot-app/target/bot-app-*.jar \
             --server.port=8090 \

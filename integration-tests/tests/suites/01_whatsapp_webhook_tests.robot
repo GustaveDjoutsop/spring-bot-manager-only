@@ -65,5 +65,6 @@ TC06 - Button reply is processed without error
 
 TC07 - Webhook with empty entry list returns 200 (no-op)
     [Tags]    whatsapp    edge
-    &{payload}=    Create Dictionary    object=whatsapp_business_account    entry=${EMPTY LIST}
+    @{empty_entries}=    Create List
+    &{payload}=    Create Dictionary    object=whatsapp_business_account    entry=${empty_entries}
     POST On Session    bot    /api/whatsapp/webhook    json=${payload}    expected_status=200
