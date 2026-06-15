@@ -9,9 +9,6 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
-  data:
-    redis:
-      url: redis://localhost:6379
 
 bot:
   config-directory: ../configs/bots
