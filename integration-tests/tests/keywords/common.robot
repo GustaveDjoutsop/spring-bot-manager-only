@@ -24,7 +24,7 @@ Get Auth0 Bearer Token
     ${resp}=    POST On Session    _auth0    /oauth/token
     ...    json=${body}    expected_status=200
     ${token}=    Set Variable    ${resp.json()}[access_token]
-    Delete Session    _auth0
+    Delete All Sessions
     RETURN    ${token}
 
 # ── Session management ─────────────────────────────────────────────────────────
