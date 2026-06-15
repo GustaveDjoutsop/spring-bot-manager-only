@@ -18,32 +18,36 @@ TC01 - Get all machines for bot returns proxy response from MachineStateService
     ${machines}=    Get Machines For Bot    ${BOT_ID}
     Should Not Be Empty    ${machines}
 
-TC02 - Response contains at least one IDLE machine
+TC02 - Response contains at least one AVAILABLE machine
     [Tags]    machine    status    smoke
+    [Documentation]    The bot maps MachineStateService's "IDLE"/available=true to its own
+    ...    MachineStatus.AVAILABLE — see MachineService.mapMachineFromResponse.
     ${machines}=    Get Machines For Bot    ${BOT_ID}
     ${idle_machines}=    Evaluate
-    ...    [m for m in $machines if m.get('status') == 'IDLE']
+    ...    [m for m in $machines if m.get('status') == 'AVAILABLE']
     Should Not Be Empty    ${idle_machines}
 
-TC03 - Response contains at least one RUNNING machine
+TC03 - Response contains at least one IN_USE machine
     [Tags]    machine    status
+    [Documentation]    The bot maps MachineStateService's "RUNNING"/available=false to its own
+    ...    MachineStatus.IN_USE — see MachineService.mapMachineFromResponse.
     ${machines}=    Get Machines For Bot    ${BOT_ID}
     ${running}=    Evaluate
-    ...    [m for m in $machines if m.get('status') == 'RUNNING']
+    ...    [m for m in $machines if m.get('status') == 'IN_USE']
     Should Not Be Empty    ${running}
 
 TC04 - Get single machine for bot returns machine record
     [Tags]    machine    smoke    single
     ${machine}=    Get Machine For Bot    ${BOT_ID}    ${MACHINE_WASHER_1}
     Should Be Equal As Strings    ${machine}[machineId]    ${MACHINE_WASHER_1}
-    Should Be Equal As Strings    ${machine}[status]       IDLE
+    Should Be Equal As Strings    ${machine}[status]       AVAILABLE
 
 TC05 - Get available machines for bot filters correctly
     [Tags]    machine    available    smoke
     ${available}=    Get Available Machines For Bot    ${BOT_ID}
     Should Not Be Empty    ${available}
     FOR    ${machine}    IN    @{available}
-        Should Be Equal As Strings    ${machine}[status]    IDLE
+        Should Be Equal As Strings    ${machine}[status]    AVAILABLE
     END
 
 TC06 - Running machine is not in available list
