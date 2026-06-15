@@ -1,5 +1,4 @@
 {
-  "id": "payment-webhook-forward-mtn",
   "name": "PaymentManagementService - Webhook MTN",
   "request": {
     "method": "POST",

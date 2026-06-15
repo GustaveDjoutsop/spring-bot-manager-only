@@ -1,5 +1,4 @@
 {
-  "id": "whatsapp-send-interactive",
   "name": "Meta - Send WhatsApp interactive (buttons) message",
   "request": {
     "method": "POST",

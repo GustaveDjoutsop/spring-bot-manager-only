@@ -1,5 +1,4 @@
 {
-  "id": "payment-webhook-forward-campay",
   "name": "PaymentManagementService - Webhook CamPay",
   "request": {
     "method": "POST",

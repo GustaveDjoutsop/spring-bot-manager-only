@@ -1,5 +1,4 @@
 {
-  "id": "machine-get-one-idle",
   "name": "MachineStateService - Get washer_01 (IDLE)",
   "request": {
     "method": "GET",

@@ -1,5 +1,4 @@
 {
-  "id": "machine-get-all",
   "name": "MachineStateService - Get all machines",
   "request": {
     "method": "GET",

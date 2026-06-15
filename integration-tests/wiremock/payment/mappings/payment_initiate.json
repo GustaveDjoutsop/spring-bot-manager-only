@@ -1,5 +1,4 @@
 {
-  "id": "payment-initiate",
   "name": "PaymentManagementService - Initiate payment",
   "request": {
     "method": "POST",

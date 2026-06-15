@@ -1,5 +1,4 @@
 {
-  "id": "machine-start-cycle",
   "name": "MachineStateService - Start cycle",
   "request": {
     "method": "POST",

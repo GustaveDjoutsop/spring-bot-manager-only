@@ -1,5 +1,4 @@
 {
-  "id": "payment-transaction-get",
   "name": "PaymentManagementService - Get transaction",
   "request": {
     "method": "GET",
